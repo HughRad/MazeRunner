@@ -1,8 +1,0 @@
-prefix=/home/corso/catkin_ws/src/maze_runner/build/devel
-
-Name: maze_runner
-Description: Description of maze_runner
-Version: 0.0.1
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: roscpp geometry_msgs moveit_core moveit_ros_planning_interface
