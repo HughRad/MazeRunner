@@ -1,0 +1,145 @@
+#include <ros/ros.h>
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <geometry_msgs/Pose.h>
+#include <vector>
+
+int main(int argc, char** argv)
+{
+  ros::init(argc, argv, "waypoint_motion_test");
+  ros::NodeHandle nh("~");
+  ros::AsyncSpinner spinner(1);
+  spinner.start();
+  
+  // Get planning group parameter, default to "manipulator" for UR3
+  std::string planning_group;
+  nh.param<std::string>("planning_group", planning_group, "manipulator");
+  
+  // Set up the move group interface
+  ROS_INFO("Using planning group: %s", planning_group.c_str());
+  moveit::planning_interface::MoveGroupInterface move_group(planning_group);
+  
+  // Set max velocity and acceleration scaling
+  move_group.setMaxVelocityScalingFactor(0.3);  // 30% of maximum velocity
+  move_group.setMaxAccelerationScalingFactor(0.3);  // 30% of maximum acceleration
+  
+  // Print the reference frame and end effector
+  ROS_INFO("Reference frame: %s", move_group.getPlanningFrame().c_str());
+  ROS_INFO("End effector link: %s", move_group.getEndEffectorLink().c_str());
+  
+  // Get current state
+  ROS_INFO("Current pose: ");
+  geometry_msgs::PoseStamped current_pose = move_group.getCurrentPose();
+  ROS_INFO("Position: [%f, %f, %f]", 
+           current_pose.pose.position.x, 
+           current_pose.pose.position.y, 
+           current_pose.pose.position.z);
+  
+  // Move to home position first to ensure a clean starting point
+  ROS_INFO("Moving to home position...");
+  move_group.setNamedTarget("home");
+  
+  moveit::planning_interface::MoveGroupInterface::Plan home_plan;
+  bool home_success = (move_group.plan(home_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+  
+  if (home_success) {
+    move_group.execute(home_plan);
+    ROS_INFO("At home position");
+  } else {
+    ROS_ERROR("Failed to plan to home position");
+    return 1;
+  }
+  
+  // Define a set of waypoints for a simple square pattern
+  std::vector<geometry_msgs::Pose> waypoints;
+  
+  // Get the updated current pose
+  geometry_msgs::Pose start_pose = move_group.getCurrentPose().pose;
+  ROS_INFO("Starting position: [%f, %f, %f]", 
+           start_pose.position.x, start_pose.position.y, start_pose.position.z);
+  
+  // Square pattern - adjust these distances based on UR3 workspace
+  geometry_msgs::Pose waypoint1 = start_pose;
+  waypoint1.position.x += 0.1;  // Move 10cm in x direction
+  waypoints.push_back(waypoint1);
+  
+  geometry_msgs::Pose waypoint2 = waypoint1;
+  waypoint2.position.y += 0.1;  // Move 10cm in y direction
+  waypoints.push_back(waypoint2);
+  
+  geometry_msgs::Pose waypoint3 = waypoint2;
+  waypoint3.position.x -= 0.1;  // Move back 10cm in x direction
+  waypoints.push_back(waypoint3);
+  
+  geometry_msgs::Pose waypoint4 = waypoint3;
+  waypoint4.position.y -= 0.1;  // Move back 10cm in y direction (return to start)
+  waypoints.push_back(waypoint4);
+  
+  // Print waypoints for debugging
+  for (size_t i = 0; i < waypoints.size(); i++) {
+    ROS_INFO("Waypoint %zu: [%f, %f, %f]", i+1, 
+             waypoints[i].position.x, waypoints[i].position.y, waypoints[i].position.z);
+  }
+  
+  // Option 1: Plan and execute a Cartesian path
+  ROS_INFO("Planning Cartesian path...");
+  moveit_msgs::RobotTrajectory trajectory;
+  const double jump_threshold = 0.0;
+  const double eef_step = 0.01;  // 1cm resolution
+  
+  double fraction = move_group.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
+  
+  ROS_INFO("Cartesian path (%.2f%% achieved)", fraction * 100.0);
+  
+  if (fraction > 0.9) {  // If we can achieve at least 90% of the path
+    // Execute the planned path
+    ROS_INFO("Executing path...");
+    move_group.execute(trajectory);
+    ROS_INFO("Path execution complete!");
+    
+    // Wait a moment
+    ros::Duration(2.0).sleep();
+  } else {
+    ROS_WARN("Could not compute Cartesian path with enough waypoints covered (%.2f%%)", fraction * 100.0);
+    ROS_INFO("Trying individual waypoints instead...");
+  }
+  
+  // Option 2: Try individual waypoint motion
+  ROS_INFO("Testing individual waypoint motion...");
+  for (size_t i = 0; i < waypoints.size(); i++) {
+    ROS_INFO("Moving to waypoint %zu", i+1);
+    
+    // Set the target pose
+    move_group.setPoseTarget(waypoints[i]);
+    
+    // Plan and execute
+    moveit::planning_interface::MoveGroupInterface::Plan my_plan;
+    bool success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+    
+    if (success) {
+      ROS_INFO("Planning to waypoint %zu succeeded", i+1);
+      move_group.execute(my_plan);
+      ROS_INFO("Reached waypoint %zu", i+1);
+      
+      // Add a small delay between movements
+      ros::Duration(1.0).sleep();
+    } else {
+      ROS_ERROR("Planning to waypoint %zu failed", i+1);
+    }
+  }
+  
+  // Return to home position
+  ROS_INFO("Returning to home position...");
+  move_group.setNamedTarget("home");
+  moveit::planning_interface::MoveGroupInterface::Plan return_plan;
+  bool success = (move_group.plan(return_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+  
+  if (success) {
+    move_group.execute(return_plan);
+    ROS_INFO("Returned to home position");
+  } else {
+    ROS_ERROR("Failed to plan return to home position");
+  }
+  
+  ros::shutdown();
+  return 0;
+}

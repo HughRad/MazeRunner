@@ -1,0 +1,23 @@
+<launch>
+  <!-- Arguments that can be passed when launching -->
+  <arg name="sim" default="false" doc="Use simulation mode"/>
+  <arg name="maze_file" default="$(find maze_runner)/data/default_maze.txt" doc="Path to maze file"/>
+  
+  <!-- Launch the appropriate robot interface -->
+  <group if="$(arg sim)">
+    <!-- Launch simulated robot -->
+    <include file="$(find ur3_moveit_config)/launch/demo.launch"/>
+  </group>
+  <group unless="$(arg sim)">
+    <!-- Launch real robot connection -->
+    <include file="$(find ur_robot_driver)/launch/ur3_bringup.launch">
+      <arg name="robot_ip" value="192.168.1.100"/>  <!-- Replace with your robot's IP -->
+    </include>
+    <include file="$(find ur3_moveit_config)/launch/ur3_moveit_planning_execution.launch"/>
+  </group>
+  
+  <!-- Launch your robot control node -->
+  <node name="robot_control" pkg="maze_runner" type="robot_control" output="screen">
+    <param name="maze_file" value="$(arg maze_file)" />
+  </node>
+</launch>

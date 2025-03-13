@@ -1,0 +1,10 @@
+FIRST
+cd ~/catkin_ws
+catkin_make
+source ~/catkin_ws/devel/setup.bash
+
+SECOND
+~/build_maze_runner.sh
+
+THIRD
+roslaunch maze_runner maze_runner.launch
