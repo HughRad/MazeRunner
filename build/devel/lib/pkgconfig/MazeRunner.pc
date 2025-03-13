@@ -1,8 +1,0 @@
-prefix=/home/corso/git/MazeRunner/build/devel
-
-Name: MazeRunner
-Description: Description of MazeRunner
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 
