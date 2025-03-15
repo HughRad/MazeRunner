@@ -1,0 +1,12 @@
+[
+{
+  "directory": "/home/ryan/git/MazeRunner/build",
+  "command": "/usr/bin/c++  -I/usr/include/opencv4 -g -std=gnu++11 -o CMakeFiles/image_processing.dir/main.cpp.o -c /home/ryan/git/MazeRunner/main.cpp",
+  "file": "/home/ryan/git/MazeRunner/main.cpp"
+},
+{
+  "directory": "/home/ryan/git/MazeRunner/build",
+  "command": "/usr/bin/c++  -I/usr/include/opencv4 -g -std=gnu++11 -o CMakeFiles/image_processing.dir/image_processing.cpp.o -c /home/ryan/git/MazeRunner/image_processing.cpp",
+  "file": "/home/ryan/git/MazeRunner/image_processing.cpp"
+}
+]
