@@ -8,8 +8,8 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/ryan/git/MazeRunner/image_processing.cpp" "CMakeFiles/image_processing.dir/image_processing.cpp.o" "gcc" "CMakeFiles/image_processing.dir/image_processing.cpp.o.d"
-  "/home/ryan/git/MazeRunner/main.cpp" "CMakeFiles/image_processing.dir/main.cpp.o" "gcc" "CMakeFiles/image_processing.dir/main.cpp.o.d"
+  "/home/ryan/git/MazeRunner/src/image_processing.cpp" "CMakeFiles/image_processing.dir/src/image_processing.cpp.o" "gcc" "CMakeFiles/image_processing.dir/src/image_processing.cpp.o.d"
+  "/home/ryan/git/MazeRunner/src/main.cpp" "CMakeFiles/image_processing.dir/src/main.cpp.o" "gcc" "CMakeFiles/image_processing.dir/src/main.cpp.o.d"
   )
 
 # Targets to which this target links.

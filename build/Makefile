@@ -129,53 +129,53 @@ image_processing/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/build
 .PHONY : image_processing/fast
 
-image_processing.o: image_processing.cpp.o
-.PHONY : image_processing.o
+src/image_processing.o: src/image_processing.cpp.o
+.PHONY : src/image_processing.o
 
 # target to build an object file
-image_processing.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/image_processing.cpp.o
-.PHONY : image_processing.cpp.o
+src/image_processing.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/src/image_processing.cpp.o
+.PHONY : src/image_processing.cpp.o
 
-image_processing.i: image_processing.cpp.i
-.PHONY : image_processing.i
+src/image_processing.i: src/image_processing.cpp.i
+.PHONY : src/image_processing.i
 
 # target to preprocess a source file
-image_processing.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/image_processing.cpp.i
-.PHONY : image_processing.cpp.i
+src/image_processing.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/src/image_processing.cpp.i
+.PHONY : src/image_processing.cpp.i
 
-image_processing.s: image_processing.cpp.s
-.PHONY : image_processing.s
+src/image_processing.s: src/image_processing.cpp.s
+.PHONY : src/image_processing.s
 
 # target to generate assembly for a file
-image_processing.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/image_processing.cpp.s
-.PHONY : image_processing.cpp.s
+src/image_processing.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/src/image_processing.cpp.s
+.PHONY : src/image_processing.cpp.s
 
-main.o: main.cpp.o
-.PHONY : main.o
+src/main.o: src/main.cpp.o
+.PHONY : src/main.o
 
 # target to build an object file
-main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/main.cpp.o
-.PHONY : main.cpp.o
+src/main.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/src/main.cpp.o
+.PHONY : src/main.cpp.o
 
-main.i: main.cpp.i
-.PHONY : main.i
+src/main.i: src/main.cpp.i
+.PHONY : src/main.i
 
 # target to preprocess a source file
-main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/main.cpp.i
-.PHONY : main.cpp.i
+src/main.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/src/main.cpp.i
+.PHONY : src/main.cpp.i
 
-main.s: main.cpp.s
-.PHONY : main.s
+src/main.s: src/main.cpp.s
+.PHONY : src/main.s
 
 # target to generate assembly for a file
-main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/main.cpp.s
-.PHONY : main.cpp.s
+src/main.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_processing.dir/build.make CMakeFiles/image_processing.dir/src/main.cpp.s
+.PHONY : src/main.cpp.s
 
 # Help Target
 help:
@@ -186,12 +186,12 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... image_processing"
-	@echo "... image_processing.o"
-	@echo "... image_processing.i"
-	@echo "... image_processing.s"
-	@echo "... main.o"
-	@echo "... main.i"
-	@echo "... main.s"
+	@echo "... src/image_processing.o"
+	@echo "... src/image_processing.i"
+	@echo "... src/image_processing.s"
+	@echo "... src/main.o"
+	@echo "... src/main.i"
+	@echo "... src/main.s"
 .PHONY : help
 
 

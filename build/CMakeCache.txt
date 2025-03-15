@@ -220,6 +220,9 @@ Project_IS_TOP_LEVEL:STATIC=ON
 //Value Computed by CMake
 Project_SOURCE_DIR:STATIC=/home/ryan/git/MazeRunner
 
+//The directory containing a CMake configuration file for catkin.
+catkin_DIR:PATH=catkin_DIR-NOTFOUND
+
 //Value Computed by CMake
 maze_BINARY_DIR:STATIC=/home/ryan/git/MazeRunner/build
 

@@ -1,1 +1,1 @@
-/usr/bin/c++ -g -rdynamic CMakeFiles/image_processing.dir/main.cpp.o CMakeFiles/image_processing.dir/image_processing.cpp.o -o image_processing 
+/usr/bin/c++ -g -rdynamic CMakeFiles/image_processing.dir/src/main.cpp.o CMakeFiles/image_processing.dir/src/image_processing.cpp.o -o image_processing 

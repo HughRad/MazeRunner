@@ -1,0 +1,7 @@
+<launch>
+    <!-- Start the RealSense camera -->
+    <node pkg="realsense2_camera" type="rs_camera.launch" name="realsense_camera" output="screen"/>
+
+    <!-- Start the Image Processing Node -->
+    <node name="image_processing_node" pkg="maze_runner" type="image_processing_node" output="screen" />
+</launch>
