@@ -1,0 +1,30 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/hughlin/RobStu2/MazeRunner/src/main.cpp
+maze_solver.h
+/home/hughlin/RobStu2/MazeRunner/src/maze_solver.h
+iostream
+-
+vector
+-
+string
+-
+
+/home/hughlin/RobStu2/MazeRunner/src/maze_solver.h
+vector
+-
+string
+-
+queue
+-
+utility
+-
+algorithm
+-
+

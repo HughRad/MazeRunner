@@ -1,0 +1,12 @@
+[
+{
+  "directory": "/home/hughlin/RobStu2/MazeRunner/src/build",
+  "command": "/usr/bin/c++    -g   -std=gnu++11 -o CMakeFiles/maze_solver.dir/main.cpp.o -c /home/hughlin/RobStu2/MazeRunner/src/main.cpp",
+  "file": "/home/hughlin/RobStu2/MazeRunner/src/main.cpp"
+},
+{
+  "directory": "/home/hughlin/RobStu2/MazeRunner/src/build",
+  "command": "/usr/bin/c++    -g   -std=gnu++11 -o CMakeFiles/maze_solver.dir/maze_solver.cpp.o -c /home/hughlin/RobStu2/MazeRunner/src/maze_solver.cpp",
+  "file": "/home/hughlin/RobStu2/MazeRunner/src/maze_solver.cpp"
+}
+]

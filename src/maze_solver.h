@@ -11,11 +11,23 @@ class maze_solver
 {
 public:
     
-    maze_solver(const std::vector<std::string>& mazeStr); // Constructor
+    maze_solver(const std::vector<std::string>& mazeStr); // Constructor takes a string ascii representation of the maze
+    // S = Start
+    // E = End
+    // # = Wall
+    // . = Open path
 
-    std::vector<std::pair<int, int>> solve(); // Solve the maze using BFS and return the path
+    std::vector<std::pair<int, int>> solve(); // Solve the maze using Breadth-First Search and return the path as a vector of coordinates
 
-    void printSolution(const std::vector<std::pair<int, int>>& path) const; // Print the maze with the solution path
+    std::vector<std::pair<double, double>> generateWaypoints(const std::vector<std::pair<int, int>>& path) const; // Generate waypoints for robot navigation (only at corners)
+
+    void scaleSet(const double& scale);
+
+    void worldSet(std::pair<double, double>& world);
+
+    void printSolution(const std::vector<std::pair<int, int>>& path) const; // Print the maze with the solution path, for debugging
+
+    void printWaypoints(const std::vector<std::pair<double, double>>& waypoints) const; // Print waypoints, for debugging
 
 private:
 
@@ -27,10 +39,16 @@ private:
     std::pair<int, int> start; // Start and end positions
     std::pair<int, int> end;
     
-    const int dx[4] = {-1, 0, 1, 0}; // Direction vectors for 4 possible moves (up, right, down, left)
+    const int dx[4] = {-1, 0, 1, 0}; // Direction vectors for all 4 possible moves (up, right, down, left)
     const int dy[4] = {0, 1, 0, -1};
+
+    // allows modification of the waypoint scale. Waypoints during BFS computations are based on a 'maze grid = 1' unit system. 
+    // For the robot this distance will need to be ajusted to whatever the real world scale of the maze it. (ie, 1 unit may = 0.72cm, hence we
+    // could set the scale to 0.72)
+    double scale_; 
+    std::pair<double, double>  world_; // world coord offset for the robot. This should be the real world coord of the left top point of the maze grid. 
     
-    bool isValid(int x, int y) const; // Helper function to check if a position is valid
+    bool isValid(int x, int y) const; // function to check if a position is is in the maze not in a wall
 
 };
 
