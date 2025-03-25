@@ -8,3 +8,4 @@ find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_executable(image_processing src/main.cpp src/image_processing.cpp)
+target_link_libraries(image_processing ${OpenCV_LIBS})

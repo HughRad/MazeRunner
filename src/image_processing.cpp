@@ -1,43 +1,81 @@
 #include "image_processing.h"
+#include <iostream>
 
-ImageProcessor::ImageProcessor(ros::NodeHandle& nh) : nh_(nh) {
-    image_transport::ImageTransport it(nh_);
-    image_sub_ = it.subscribe("/camera/color/image_raw", 1, &ImageProcessor::imageCallback, this);
-    processed_image_pub_ = it.advertise("/maze_runner/processed_image", 1);
-}
+ImageProcessor::ImageProcessor() {}
 
-void ImageProcessor::imageCallback(const sensor_msgs::ImageConstPtr& msg) {
-    try {
-        cv::Mat image = cv_bridge::toCvShare(msg, "bgr8")->image;
-        cv::Mat processed = preprocessImage(image);
-        cv::Mat maze = detectMaze(processed);
-        
-        // Convert back to ROS message and publish
-        sensor_msgs::ImagePtr processed_msg = cv_bridge::CvImage(msg->header, "mono8", maze).toImageMsg();
-        processed_image_pub_.publish(processed_msg);
-    } catch (cv_bridge::Exception& e) {
-        ROS_ERROR("cv_bridge exception: %s", e.what());
+std::vector<std::string> ImageProcessor::processMaze(const std::string& imagePath) {
+    cv::Mat image = cv::imread(imagePath, cv::IMREAD_GRAYSCALE);
+    if (image.empty()) {
+        std::cerr << "Error: Could not load image." << std::endl;
+        return {};
     }
+
+    // Preprocess and display the binary image
+    cv::Mat binaryImage = preprocessImage(image);
+    cv::imshow("Binary Image", binaryImage);
+    cv::waitKey(0); // Debug: Pause to inspect
+
+    // Detect grid intersections
+    std::vector<cv::Point> gridPoints = detectGridPoints(binaryImage);
+
+    // Debugging: Draw grid points
+    cv::Mat debugImage;
+    cv::cvtColor(binaryImage, debugImage, cv::COLOR_GRAY2BGR);
+    for (const auto& pt : gridPoints) {
+        cv::circle(debugImage, pt, 5, cv::Scalar(0, 0, 255), -1);
+    }
+    cv::imshow("Grid Points", debugImage);
+    cv::waitKey(0); // Debug: Pause to inspect
+
+    // Generate the maze structure
+    std::vector<std::string> maze = generateMazeArray(gridPoints, binaryImage);
+
+    // Debugging: Print the maze array
+    for (const auto& row : maze) {
+        std::cout << row << std::endl;
+    }
+
+    return maze;
 }
 
 cv::Mat ImageProcessor::preprocessImage(const cv::Mat& image) {
-    cv::Mat gray, blurred, edges;
-    cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
-    cv::GaussianBlur(gray, blurred, cv::Size(5, 5), 0);
-    cv::Canny(blurred, edges, 50, 150);
-    return edges;
+    cv::Mat blurred, binary;
+    cv::GaussianBlur(image, blurred, cv::Size(5, 5), 0);
+    cv::adaptiveThreshold(blurred, binary, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 2);
+    return binary;
 }
 
-cv::Mat ImageProcessor::detectMaze(const cv::Mat& image) {
-    cv::Mat thresholded;
-    cv::threshold(image, thresholded, 128, 255, cv::THRESH_BINARY);
-    return thresholded;
+std::vector<cv::Point> ImageProcessor::detectGridPoints(const cv::Mat& binaryImage) {
+    std::vector<cv::Vec4i> lines;
+    cv::HoughLinesP(binaryImage, lines, 1, CV_PI / 180, 50, 50, 10);
+
+    std::vector<cv::Point> gridPoints;
+    for (const auto& line : lines) {
+        gridPoints.emplace_back(line[0], line[1]);
+        gridPoints.emplace_back(line[2], line[3]);
+    }
+
+    // Debugging: Print detected points
+    std::cout << "Detected Grid Points:" << std::endl;
+    for (const auto& pt : gridPoints) {
+        std::cout << "(" << pt.x << ", " << pt.y << ")" << std::endl;
+    }
+
+    return gridPoints;
 }
 
-int main(int argc, char** argv) {
-    ros::init(argc, argv, "image_processing_node");
-    ros::NodeHandle nh;
-    ImageProcessor ip(nh);
-    ros::spin();
-    return 0;
+std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv::Point>& gridPoints, const cv::Mat& binaryImage) {
+    std::vector<std::string> maze(9, std::string(9, '.'));
+
+    for (size_t i = 0; i < gridPoints.size(); i++) {
+        for (size_t j = i + 1; j < gridPoints.size(); j++) {
+            if (cv::norm(gridPoints[i] - gridPoints[j]) < 20) {
+                int row = std::min(gridPoints[i].y, gridPoints[j].y) / (binaryImage.rows / 9);
+                int col = std::min(gridPoints[i].x, gridPoints[j].x) / (binaryImage.cols / 9);
+                maze[row][col] = '#';
+            }
+        }
+    }
+
+    return maze;
 }

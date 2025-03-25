@@ -212,27 +212,6 @@ CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 OpenCV_DIR:PATH=/usr/lib/x86_64-linux-gnu/cmake/opencv4
 
 //Value Computed by CMake
-Project_BINARY_DIR:STATIC=/home/ryan/git/MazeRunner/build
-
-//Value Computed by CMake
-Project_IS_TOP_LEVEL:STATIC=ON
-
-//Value Computed by CMake
-Project_SOURCE_DIR:STATIC=/home/ryan/git/MazeRunner
-
-//The directory containing a CMake configuration file for catkin.
-catkin_DIR:PATH=catkin_DIR-NOTFOUND
-
-//Value Computed by CMake
-maze_BINARY_DIR:STATIC=/home/ryan/git/MazeRunner/build
-
-//Value Computed by CMake
-maze_IS_TOP_LEVEL:STATIC=ON
-
-//Value Computed by CMake
-maze_SOURCE_DIR:STATIC=/home/ryan/git/MazeRunner
-
-//Value Computed by CMake
 maze_runner_BINARY_DIR:STATIC=/home/ryan/git/MazeRunner/build
 
 //Value Computed by CMake
@@ -240,15 +219,6 @@ maze_runner_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
 maze_runner_SOURCE_DIR:STATIC=/home/ryan/git/MazeRunner
-
-//Value Computed by CMake
-mazerunner_BINARY_DIR:STATIC=/home/ryan/git/MazeRunner/build
-
-//Value Computed by CMake
-mazerunner_IS_TOP_LEVEL:STATIC=ON
-
-//Value Computed by CMake
-mazerunner_SOURCE_DIR:STATIC=/home/ryan/git/MazeRunner
 
 
 ########################

@@ -1,24 +1,19 @@
 #ifndef IMAGE_PROCESSING_H
 #define IMAGE_PROCESSING_H
 
-#include <ros/ros.h>
-#include <sensor_msgs/Image.h>
-#include <cv_bridge/cv_bridge.h>
-#include <image_transport/image_transport.h>
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <string>
 
 class ImageProcessor {
-    public:
-        ImageProcessor(ros::NodeHandle& nh);
-        void imageCallback(const sensor_msgs::ImageConstPtr& msg);
-        cv::Mat preprocessImage(const cv::Mat& image);
-        cv::Mat detectMaze(const cv::Mat& image);
+public:
+    ImageProcessor();
+    std::vector<std::string> processMaze(const std::string &imagePath);
+
     private:
-        ros::NodeHandle nh_;
-        image_transport::Subscriber image_sub_;
-        image_transport::Publisher processed_image_pub_;
+    cv::Mat preprocessImage(const cv::Mat& image);
+    std::vector<cv::Point> detectGridPoints(const cv::Mat& binaryImage);
+    std::vector<std::string> generateMazeArray(const std::vector<cv::Point>& gridPoints, const cv::Mat& binaryImage);
 };
 
 #endif // IMAGE_PROCESSING_H
