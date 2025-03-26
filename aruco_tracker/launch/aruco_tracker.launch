@@ -1,0 +1,16 @@
+<launch>
+  <!-- Start RealSense camera -->
+  <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+    <arg name="align_depth" value="true"/>
+  </include>
+  
+  <!-- Start ArUco Tracker -->
+  <node name="aruco_tracker_node" pkg="aruco_tracker" type="aruco_tracker_node" output="screen">
+    <param name="desired_z" value="0.5" />
+  </node>
+  
+  <!-- Visualize the output -->
+  <node name="image_view" pkg="image_view" type="image_view" respawn="false" output="screen">
+    <remap from="image" to="/aruco_tracker/output_image" />
+  </node>
+</launch>
