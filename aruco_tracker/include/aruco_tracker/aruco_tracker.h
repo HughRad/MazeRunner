@@ -54,14 +54,14 @@ private:
   void processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_ptr);
   
   // Calculate velocity to centre on marker
-  geometry_msgs::Twist calculateVelocity(const std::vector<cv::Point2f>& corners, const cv::Point2f& center);
+  geometry_msgs::Twist calculateVelocity(const std::vector<cv::Point2f>& corners, const cv::Point2f& centre);
   
   // Calculate rotation to align with marker
   double calculateRotation(const std::vector<cv::Point2f>& corners);
   
   // Draw visualisation
-  void drawVisualization(cv_bridge::CvImagePtr& cv_ptr, const std::vector<cv::Point2f>& corners, 
-                         const cv::Point2f& center, const geometry_msgs::Twist& velocity, double rotation);
+  void drawVisualisation(cv_bridge::CvImagePtr& cv_ptr, const std::vector<cv::Point2f>& corners, 
+                         const cv::Point2f& centre, const geometry_msgs::Twist& velocity, double rotation);
 };
 
 #endif // ARUCO_TRACKER_H

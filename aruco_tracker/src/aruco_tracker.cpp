@@ -4,7 +4,7 @@
 ArucoTracker::ArucoTracker(ros::NodeHandle& nh) : nh_(nh), it_(nh)
 {
   // Get parameters
-  nh_.param<double>("desired_z", desired_z_, 0.5); // Default 0.5 meters
+  nh_.param<double>("desired_z", desired_z_, 0); // Default 0
   
   // Set up ArUco detector
   dictionary_ = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
@@ -22,7 +22,7 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) : nh_(nh), it_(nh)
   // Publish velocity commands
   velocity_pub_ = nh_.advertise<geometry_msgs::Twist>("cmd_vel", 1);
   
-  ROS_INFO("ArUco Tracker initialized");
+  ROS_INFO("ArUco Tracker initialised");
 }
 
 ArucoTracker::~ArucoTracker()
@@ -58,7 +58,7 @@ void ArucoTracker::imageCallback(const sensor_msgs::ImageConstPtr& msg)
     // Process frame
     processFrame(cv_ptr->image, cv_ptr);
     
-    // Publish visualized image
+    // Publish visualised image
     image_pub_.publish(cv_ptr->toImageMsg());
   }
   catch (cv_bridge::Exception& e) {
@@ -74,11 +74,11 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
   cv::aruco::detectMarkers(frame, dictionary_, marker_corners, marker_ids, parameters_);
   
   // Get frame centre
-  cv::Point2f center(frame.cols / 2.0f, frame.rows / 2.0f);
+  cv::Point2f centre(frame.cols / 2.0f, frame.rows / 2.0f);
   
   // Draw centre crosshair
-  cv::line(cv_ptr->image, cv::Point(center.x - 10, center.y), cv::Point(center.x + 10, center.y), cv::Scalar(0, 0, 255), 2);
-  cv::line(cv_ptr->image, cv::Point(center.x, center.y - 10), cv::Point(center.x, center.y + 10), cv::Scalar(0, 0, 255), 2);
+  cv::line(cv_ptr->image, cv::Point(centre.x - 10, centre.y), cv::Point(centre.x + 10, centre.y), cv::Scalar(0, 0, 255), 2);
+  cv::line(cv_ptr->image, cv::Point(centre.x, centre.y - 10), cv::Point(centre.x, centre.y + 10), cv::Scalar(0, 0, 255), 2);
   
   // If markers are detected
   if (marker_ids.size() > 0) {
@@ -89,30 +89,30 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
     std::vector<cv::Point2f> corners = marker_corners[0];
     
     // Calculate velocity
-    geometry_msgs::Twist velocity = calculateVelocity(corners, center);
+    geometry_msgs::Twist velocity = calculateVelocity(corners, centre);
     
     // Calculate rotation
     double rotation = calculateRotation(corners);
     
-    // Draw visualization
-          drawVisualization(cv_ptr, corners, center, velocity, rotation);
+    // Draw visualisation
+    drawVisualisation(cv_ptr, corners, centre, velocity, rotation);
     
     // Publish velocity command
     velocity_pub_.publish(velocity);
   }
 }
 
-geometry_msgs::Twist ArucoTracker::calculateVelocity(const std::vector<cv::Point2f>& corners, const cv::Point2f& center)
+geometry_msgs::Twist ArucoTracker::calculateVelocity(const std::vector<cv::Point2f>& corners, const cv::Point2f& centre)
 {
   // Calculate marker centre
-  cv::Point2f marker_center(0, 0);
+  cv::Point2f marker_centre(0, 0);
   for (const auto& corner : corners) {
-    marker_center += corner;
+    marker_centre += corner;
   }
-  marker_center *= 0.25f;
+  marker_centre *= 0.25f;
   
   // Calculate vector from centre to marker
-  cv::Point2f direction = marker_center - center;
+  cv::Point2f direction = marker_centre - centre;
   
   // Create velocity message
   geometry_msgs::Twist vel;
@@ -141,26 +141,26 @@ double ArucoTracker::calculateRotation(const std::vector<cv::Point2f>& corners)
   return angle;
 }
 
-void ArucoTracker::drawVisualization(cv_bridge::CvImagePtr& cv_ptr, const std::vector<cv::Point2f>& corners, 
-                                     const cv::Point2f& center, const geometry_msgs::Twist& velocity, double rotation)
+void ArucoTracker::drawVisualisation(cv_bridge::CvImagePtr& cv_ptr, const std::vector<cv::Point2f>& corners, 
+                                     const cv::Point2f& centre, const geometry_msgs::Twist& velocity, double rotation)
 {
-  // Calculate marker center
-  cv::Point2f marker_center(0, 0);
+  // Calculate marker centre
+  cv::Point2f marker_centre(0, 0);
   for (const auto& corner : corners) {
-    marker_center += corner;
+    marker_centre += corner;
   }
-  marker_center *= 0.25f;
+  marker_centre *= 0.25f;
   
   // Draw line from centre to marker
-  cv::line(cv_ptr->image, center, marker_center, cv::Scalar(0, 255, 0), 2);
+  cv::line(cv_ptr->image, centre, marker_centre, cv::Scalar(0, 255, 0), 2);
   
   // Calculate pixel distance
-  double pixel_distance = cv::norm(marker_center - center);
+  double pixel_distance = cv::norm(marker_centre - centre);
   
   // Display pixel distance (near centre crosshair)
   std::stringstream ss_distance;
   ss_distance << "Distance: " << std::fixed << std::setprecision(1) << pixel_distance << " px";
-  cv::putText(cv_ptr->image, ss_distance.str(), cv::Point(center.x + 15, center.y + 15), 
+  cv::putText(cv_ptr->image, ss_distance.str(), cv::Point(centre.x + 15, centre.y + 15), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
   
   // Display rotation

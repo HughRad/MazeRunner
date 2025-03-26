@@ -4,7 +4,7 @@
   <version>0.1.0</version>
   <description>Package for ArUco marker tracking with RealSense camera</description>
   
-  <maintainer email="user@example.com">user</maintainer>
+  <maintainer email="nicholasuremobvic@gmail.com">user</maintainer>
   <license>MIT</license>
   
   <buildtool_depend>catkin</buildtool_depend>

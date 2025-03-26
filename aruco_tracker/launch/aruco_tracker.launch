@@ -9,7 +9,7 @@
     <param name="desired_z" value="0.5" />
   </node>
   
-  <!-- Visualize the output -->
+  <!-- Visualise the output -->
   <node name="image_view" pkg="image_view" type="image_view" respawn="false" output="screen">
     <remap from="image" to="/aruco_tracker/output_image" />
   </node>
