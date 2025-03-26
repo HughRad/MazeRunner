@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<package format="2">
-  <name>pattern_detector</name>
-  <version>0.1.0</version>
-  <description>ROS package for detecting and aligning with patterns of red shapes</description>
-
-  <maintainer email="nicholasuremovic@gmail.com">Your Name
