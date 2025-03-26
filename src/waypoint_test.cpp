@@ -2,144 +2,148 @@
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <geometry_msgs/Pose.h>
 #include <vector>
+#include <iostream>
+#include <limits>
+
+class RobotController {
+private:
+    ros::NodeHandle nh_;
+    moveit::planning_interface::MoveGroupInterface move_group_;
+    std::string planning_group_;
+
+public:
+    // Constructor
+    RobotController(const std::string& planning_group = "manipulator") 
+        : move_group_(planning_group), planning_group_(planning_group) {
+        
+        // Configure move group settings
+        configureMovement();
+    }
+
+    // Configure movement parameters
+    void configureMovement() {
+        // Set max velocity and acceleration scaling
+        move_group_.setMaxVelocityScalingFactor(0.3);  // 30% of maximum velocity
+        move_group_.setMaxAccelerationScalingFactor(0.3);  // 30% of maximum acceleration
+        
+        // Print reference frame and end effector info
+        ROS_INFO("Reference frame: %s", move_group_.getPlanningFrame().c_str());
+        ROS_INFO("End effector link: %s", move_group_.getEndEffectorLink().c_str());
+    }
+
+    // Move to a named target (like home position)
+    bool moveToNamedTarget(const std::string& target_name) {
+        ROS_INFO("Moving to %s position...", target_name.c_str());
+        
+        // Set the named target
+        move_group_.setNamedTarget(target_name);
+        
+        // Plan the movement
+        moveit::planning_interface::MoveGroupInterface::Plan plan;
+        bool success = (move_group_.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        
+        if (success) {
+            // Execute the plan
+            move_group_.execute(plan);
+            ROS_INFO("Reached %s position", target_name.c_str());
+            return true;
+        } else {
+            ROS_ERROR("Failed to plan to %s position", target_name.c_str());
+            return false;
+        }
+    }
+
+    // Move to a specific pose
+    bool moveToPose(const geometry_msgs::Pose& target_pose) {
+        // Print the target coordinates
+        ROS_INFO("Target coordinates: [%f, %f, %f]", 
+                 target_pose.position.x, 
+                 target_pose.position.y, 
+                 target_pose.position.z);
+        
+        // Set the target pose
+        move_group_.setPoseTarget(target_pose);
+        
+        // Plan and execute
+        moveit::planning_interface::MoveGroupInterface::Plan plan;
+        bool success = (move_group_.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        
+        if (success) {
+            ROS_INFO("Planning succeeded");
+            move_group_.execute(plan);
+            ROS_INFO("Reached target pose");
+            return true;
+        } else {
+            ROS_ERROR("Planning failed");
+            return false;
+        }
+    }
+
+    // Get current pose
+    geometry_msgs::Pose getCurrentPose() {
+        return move_group_.getCurrentPose().pose;
+    }
+
+    // Get user-defined pose via terminal input
+    geometry_msgs::Pose getUserDefinedPose() {
+        geometry_msgs::Pose target_pose;
+        
+        std::cout << "Enter target pose coordinates (x y z):\n";
+        std::cout << "X coordinate (meters): ";
+        std::cin >> target_pose.position.x;
+        
+        std::cout << "Y coordinate (meters): ";
+        std::cin >> target_pose.position.y;
+        
+        std::cout << "Z coordinate (meters): ";
+        std::cin >> target_pose.position.z;
+        
+        // Set default orientation (you may want to modify this)
+        target_pose.orientation.x = 0.0;
+        target_pose.orientation.y = 0.0;
+        target_pose.orientation.z = 0.0;
+        target_pose.orientation.w = 1.0;
+        
+        return target_pose;
+    }
+};
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "waypoint_motion_test");
-  ros::NodeHandle nh("~");
-  ros::AsyncSpinner spinner(1);
-  spinner.start();
-  
-  // Get planning group parameter, default to "manipulator" for UR3
-  std::string planning_group;
-  nh.param<std::string>("planning_group", planning_group, "manipulator");
-  
-  // Set up the move group interface
-  ROS_INFO("Using planning group: %s", planning_group.c_str());
-  moveit::planning_interface::MoveGroupInterface move_group(planning_group);
-  
-  // Set max velocity and acceleration scaling
-  move_group.setMaxVelocityScalingFactor(0.3);  // 30% of maximum velocity
-  move_group.setMaxAccelerationScalingFactor(0.3);  // 30% of maximum acceleration
-  
-  // Print the reference frame and end effector
-  ROS_INFO("Reference frame: %s", move_group.getPlanningFrame().c_str());
-  ROS_INFO("End effector link: %s", move_group.getEndEffectorLink().c_str());
-  
-  // Get current state
-  ROS_INFO("Current pose: ");
-  geometry_msgs::PoseStamped current_pose = move_group.getCurrentPose();
-  ROS_INFO("Position: [%f, %f, %f]", 
-           current_pose.pose.position.x, 
-           current_pose.pose.position.y, 
-           current_pose.pose.position.z);
-  
-  // Move to home position first to ensure a clean starting point
-  ROS_INFO("Moving to home position...");
-  move_group.setNamedTarget("home");
-  
-  moveit::planning_interface::MoveGroupInterface::Plan home_plan;
-  bool home_success = (move_group.plan(home_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-  
-  if (home_success) {
-    move_group.execute(home_plan);
-    ROS_INFO("At home position");
-  } else {
-    ROS_ERROR("Failed to plan to home position");
-    return 1;
-  }
-  
-  // Define a set of waypoints for a simple square pattern
-  std::vector<geometry_msgs::Pose> waypoints;
-  
-  // Get the updated current pose
-  geometry_msgs::Pose start_pose = move_group.getCurrentPose().pose;
-  ROS_INFO("Starting position: [%f, %f, %f]", 
-           start_pose.position.x, start_pose.position.y, start_pose.position.z);
-  
-  // Square pattern - adjust these distances based on UR3 workspace
-  geometry_msgs::Pose waypoint1 = start_pose;
-  waypoint1.position.x += 0.1;  // Move 10cm in x direction
-  waypoints.push_back(waypoint1);
-  
-  geometry_msgs::Pose waypoint2 = waypoint1;
-  waypoint2.position.y += 0.1;  // Move 10cm in y direction
-  waypoints.push_back(waypoint2);
-  
-  geometry_msgs::Pose waypoint3 = waypoint2;
-  waypoint3.position.x -= 0.1;  // Move back 10cm in x direction
-  waypoints.push_back(waypoint3);
-  
-  geometry_msgs::Pose waypoint4 = waypoint3;
-  waypoint4.position.y -= 0.1;  // Move back 10cm in y direction (return to start)
-  waypoints.push_back(waypoint4);
-  
-  // Print waypoints for debugging
-  for (size_t i = 0; i < waypoints.size(); i++) {
-    ROS_INFO("Waypoint %zu: [%f, %f, %f]", i+1, 
-             waypoints[i].position.x, waypoints[i].position.y, waypoints[i].position.z);
-  }
-  
-  // Option 1: Plan and execute a Cartesian path
-  ROS_INFO("Planning Cartesian path...");
-  moveit_msgs::RobotTrajectory trajectory;
-  const double jump_threshold = 0.0;
-  const double eef_step = 0.01;  // 1cm resolution
-  
-  double fraction = move_group.computeCartesianPath(waypoints, eef_step, jump_threshold, trajectory);
-  
-  ROS_INFO("Cartesian path (%.2f%% achieved)", fraction * 100.0);
-  
-  if (fraction > 0.9) {  // If we can achieve at least 90% of the path
-    // Execute the planned path
-    ROS_INFO("Executing path...");
-    move_group.execute(trajectory);
-    ROS_INFO("Path execution complete!");
+    // Initialize ROS
+    ros::init(argc, argv, "coordinate_motion_test");
+    ros::AsyncSpinner spinner(1);
+    spinner.start();
     
-    // Wait a moment
-    ros::Duration(2.0).sleep();
-  } else {
-    ROS_WARN("Could not compute Cartesian path with enough waypoints covered (%.2f%%)", fraction * 100.0);
-    ROS_INFO("Trying individual waypoints instead...");
-  }
-  
-  // Option 2: Try individual waypoint motion
-  ROS_INFO("Testing individual waypoint motion...");
-  for (size_t i = 0; i < waypoints.size(); i++) {
-    ROS_INFO("Moving to waypoint %zu", i+1);
+    // Create robot controller
+    RobotController robot;
     
-    // Set the target pose
-    move_group.setPoseTarget(waypoints[i]);
-    
-    // Plan and execute
-    moveit::planning_interface::MoveGroupInterface::Plan my_plan;
-    bool success = (move_group.plan(my_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-    
-    if (success) {
-      ROS_INFO("Planning to waypoint %zu succeeded", i+1);
-      move_group.execute(my_plan);
-      ROS_INFO("Reached waypoint %zu", i+1);
-      
-      // Add a small delay between movements
-      ros::Duration(1.0).sleep();
-    } else {
-      ROS_ERROR("Planning to waypoint %zu failed", i+1);
+    // Move to home position
+    if (!robot.moveToNamedTarget("home")) {
+        ROS_ERROR("Could not move to home position");
+        return 1;
     }
-  }
-  
-  // Return to home position
-  ROS_INFO("Returning to home position...");
-  move_group.setNamedTarget("home");
-  moveit::planning_interface::MoveGroupInterface::Plan return_plan;
-  bool success = (move_group.plan(return_plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
-  
-  if (success) {
-    move_group.execute(return_plan);
-    ROS_INFO("Returned to home position");
-  } else {
-    ROS_ERROR("Failed to plan return to home position");
-  }
-  
-  ros::shutdown();
-  return 0;
+    
+    // Main interaction loop
+    char continue_input = 'y';
+    while (ros::ok() && (continue_input == 'y' || continue_input == 'Y')) {
+        // Get user-defined pose
+        geometry_msgs::Pose target_pose = robot.getUserDefinedPose();
+        
+        // Move to the specified pose
+        robot.moveToPose(target_pose);
+        
+        // Ask if user wants to continue
+        std::cout << "Do you want to move to another coordinate? (y/n): ";
+        std::cin >> continue_input;
+        
+        // Clear input buffer to prevent issues with subsequent inputs
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    }
+    
+    // Return to home position
+    robot.moveToNamedTarget("home");
+    
+    ros::shutdown();
+    return 0;
 }

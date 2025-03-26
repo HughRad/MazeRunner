@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Site BuildName="(empty)"
-	BuildStamp="20250313-0052-Experimental"
+	BuildStamp="20250325-0402-Experimental"
 	Name="gs66-stealth"
 	Generator="ctest-3.16.3"
 	CompilerName="/usr/bin/c++"
@@ -21,14 +21,14 @@
 	TotalVirtualMemory="2047"
 	TotalPhysicalMemory="15804"
 	LogicalProcessorsPerPhysical="2"
-	ProcessorClockFrequency="2600"
+	ProcessorClockFrequency="2326.74"
 	>
 	<Testing>
-		<StartDateTime>Mar 13 13:15 AEDT</StartDateTime>
-		<StartTestTime>1741832137</StartTestTime>
+		<StartDateTime>Mar 25 15:02 AEDT</StartDateTime>
+		<StartTestTime>1742875339</StartTestTime>
 		<TestList/>
-		<EndDateTime>Mar 13 13:15 AEDT</EndDateTime>
-		<EndTestTime>1741832137</EndTestTime>
+		<EndDateTime>Mar 25 15:02 AEDT</EndDateTime>
+		<EndTestTime>1742875339</EndTestTime>
 		<ElapsedMinutes>0</ElapsedMinutes>
 	</Testing>
 </Site>
