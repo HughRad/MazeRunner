@@ -13,22 +13,23 @@ std::vector<std::string> ImageProcessor::processMaze(const std::string& imagePat
     // Preprocess and display the binary image
     cv::Mat binaryImage = preprocessImage(image);
     cv::imshow("Binary Image", binaryImage);
-    cv::waitKey(0); // Debug: Pause to inspect
+    cv::waitKey(0);
 
-    // Detect grid intersections
-    std::vector<cv::Point> gridPoints = detectGridPoints(binaryImage);
+    // Detect maze walls
+    std::vector<cv::Vec4i> walls = detectMazeWalls(binaryImage);
 
-    // Debugging: Draw grid points
+    // Debugging: Draw walls
     cv::Mat debugImage;
     cv::cvtColor(binaryImage, debugImage, cv::COLOR_GRAY2BGR);
-    for (const auto& pt : gridPoints) {
-        cv::circle(debugImage, pt, 5, cv::Scalar(0, 0, 255), -1);
+    for (const auto& wall : walls) {
+        cv::line(debugImage, cv::Point(wall[0], wall[1]), 
+                 cv::Point(wall[2], wall[3]), cv::Scalar(0, 0, 255), 2);
     }
-    cv::imshow("Grid Points", debugImage);
-    cv::waitKey(0); // Debug: Pause to inspect
+    cv::imshow("Maze Walls", debugImage);
+    cv::waitKey(0);
 
     // Generate the maze structure
-    std::vector<std::string> maze = generateMazeArray(gridPoints, binaryImage);
+    std::vector<std::string> maze = generateMazeArray(walls, binaryImage);
 
     // Debugging: Print the maze array
     for (const auto& row : maze) {
@@ -45,37 +46,59 @@ cv::Mat ImageProcessor::preprocessImage(const cv::Mat& image) {
     return binary;
 }
 
-std::vector<cv::Point> ImageProcessor::detectGridPoints(const cv::Mat& binaryImage) {
+std::vector<cv::Vec4i> ImageProcessor::detectMazeWalls(const cv::Mat& binaryImage) {
     std::vector<cv::Vec4i> lines;
     cv::HoughLinesP(binaryImage, lines, 1, CV_PI / 180, 50, 50, 10);
 
-    std::vector<cv::Point> gridPoints;
+    // Debugging: Print detected wall segments
+    std::cout << "Detected Maze Walls:" << std::endl;
     for (const auto& line : lines) {
-        gridPoints.emplace_back(line[0], line[1]);
-        gridPoints.emplace_back(line[2], line[3]);
+        std::cout << "Wall: (" << line[0] << "," << line[1] << ") to ("
+                 << line[2] << "," << line[3] << ")" << std::endl;
     }
 
-    // Debugging: Print detected points
-    std::cout << "Detected Grid Points:" << std::endl;
-    for (const auto& pt : gridPoints) {
-        std::cout << "(" << pt.x << ", " << pt.y << ")" << std::endl;
-    }
-
-    return gridPoints;
+    return lines;
 }
 
-std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv::Point>& gridPoints, const cv::Mat& binaryImage) {
-    std::vector<std::string> maze(9, std::string(9, '.'));
+std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv::Vec4i>& walls, const cv::Mat& binaryImage) {
+    // Determine grid size based on image dimensions
+    const int GRID_SIZE = 20; // pixels per cell
+    int rows = binaryImage.rows / GRID_SIZE;
+    int cols = binaryImage.cols / GRID_SIZE;
+    
+    std::vector<std::string> maze(rows, std::string(cols, '.'));
 
-    for (size_t i = 0; i < gridPoints.size(); i++) {
-        for (size_t j = i + 1; j < gridPoints.size(); j++) {
-            if (cv::norm(gridPoints[i] - gridPoints[j]) < 20) {
-                int row = std::min(gridPoints[i].y, gridPoints[j].y) / (binaryImage.rows / 9);
-                int col = std::min(gridPoints[i].x, gridPoints[j].x) / (binaryImage.cols / 9);
-                maze[row][col] = '#';
+    // Create a matrix to store wall density
+    cv::Mat wallDensity = cv::Mat::zeros(rows, cols, CV_32F);
+
+    // Process each wall segment
+    for (const auto& wall : walls) {
+        // Use Bresenham's line algorithm to get all points along the wall
+        cv::LineIterator it(binaryImage, cv::Point(wall[0], wall[1]), 
+                          cv::Point(wall[2], wall[3]), 8);
+        for(int i = 0; i < it.count; i++, ++it) {
+            cv::Point pt = it.pos();
+            int row = pt.y / GRID_SIZE;
+            int col = pt.x / GRID_SIZE;
+            
+            if (row >= 0 && row < rows && col >= 0 && col < cols) {
+                wallDensity.at<float>(row, col) += 1.0f;
             }
         }
     }
 
+    // Convert density to walls using a threshold
+    float threshold = 5.0f; // Adjust this value based on your needs
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            if (wallDensity.at<float>(i, j) > threshold) {
+                maze[i][j] = '#';
+            }
+        }
+    }
+
+    // Debug output
+    std::cout << "Maze dimensions: " << rows << "x" << cols << std::endl;
+    
     return maze;
 }
