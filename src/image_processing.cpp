@@ -4,7 +4,7 @@
 ImageProcessor::ImageProcessor() {}
 
 std::vector<std::string> ImageProcessor::processMaze(const std::string& imagePath) {
-    cv::Mat image = cv::imread(imagePath, cv::IMREAD_GRAYSCALE);
+    cv::Mat image = cv::imread(imagePath, cv::IMREAD_GRAYSCALE); // Load image in grayscale
     if (image.empty()) {
         std::cerr << "Error: Could not load image." << std::endl;
         return {};
@@ -32,16 +32,21 @@ std::vector<std::string> ImageProcessor::processMaze(const std::string& imagePat
     std::vector<std::string> maze = generateMazeArray(walls, binaryImage);
 
     // Debugging: Print the maze array
+    /*
     for (const auto& row : maze) {
         std::cout << row << std::endl;
     }
-
+    */
     return maze;
 }
 
 cv::Mat ImageProcessor::preprocessImage(const cv::Mat& image) {
     cv::Mat blurred, binary;
+
+    // Reduce noise (blur) using a 5x5 Gaussian filter
     cv::GaussianBlur(image, blurred, cv::Size(5, 5), 0);
+
+    // Convert grayscale image to binary (white for walls/black for paths)
     cv::adaptiveThreshold(blurred, binary, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 2);
     return binary;
 }
