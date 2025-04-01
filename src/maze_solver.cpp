@@ -2,10 +2,29 @@
 #include <iostream>
 #include <algorithm> 
 
+std::vector<geometry_msgs::Pose> maze_solver::pathPlaner(){
+    // Solve the maze
+    auto path = solve();
+
+    // Print the ASCII solution (for debugging)
+    printSolution(path);
+
+    // Generate waypoints as geometry_msgs
+    auto waypoints = generateWaypoints(path);
+
+    // Print output to terminal to verify
+    printWaypoints(waypoints);
+
+    return waypoints;
+}
+
+
 maze_solver::maze_solver(const std::vector<std::string>& mazeStr) {
     // defualt settings for scale and world coord
     world_ = {0, 0};
     scale_ = 1;
+    rotation_ = 0;
+    depth_ = 0;
 
     // Get maze dimensions from the ascii input
     rows = mazeStr.size();
@@ -105,21 +124,41 @@ std::vector<std::pair<int, int>> maze_solver::solve() {
     return path; //return the vector of solution coordinates
 }
 
-std::vector<std::pair<double, double>> maze_solver::generateWaypoints(const std::vector<std::pair<int, int>>& path) const {
+std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vector<std::pair<int, int>>& path) const {
     if (path.empty()) {
         return {};
     }
     
     std::vector<std::pair<int, int>> waypoints; 
-    std::vector<std::pair<double, double>> converted_waypoints;
-    
+    std::vector<geometry_msgs::Pose> converted_waypoints;
+
     waypoints.push_back(path[0]); // include the start point
     
     if (path.size() == 1) { // If the path has only one point, return just that (after conversion to double and applying scale mods)
-        converted_waypoints.emplace_back(
-            (static_cast<double>(waypoints[0].first) * scale_ * (-1)) + world_.second,
-            (static_cast<double>(waypoints[0].second) * scale_) + world_.first
-        );
+
+        double angle_rad = rotation_ * M_PI / 180.0; 
+
+        double x = static_cast<double>(waypoints[0].first);
+        double y = static_cast<double>(waypoints[0].second);
+
+        double rotated_x = (x * cos(angle_rad) - y * sin(angle_rad));
+        double rotated_y = (x * sin(angle_rad) + y * cos(angle_rad));
+
+        double scaled_x = (rotated_x * scale_ * (-1)) + world_.first;
+        double scaled_y = (rotated_y * scale_) + world_.second;
+
+        geometry_msgs::Pose pose;
+        pose.position.x = scaled_x;
+        pose.position.y = scaled_y;
+        pose.position.z = depth_; 
+        
+        // Set orientation as identity quaternion (no rotation)
+        pose.orientation.x = 0.0;
+        pose.orientation.y = 0.0;
+        pose.orientation.z = 0.0;
+        pose.orientation.w = 1.0;
+        
+        converted_waypoints.push_back(pose);
         return converted_waypoints;
     }
     
@@ -150,13 +189,33 @@ std::vector<std::pair<double, double>> maze_solver::generateWaypoints(const std:
         waypoints.push_back(path.back());
     }
 
+    double angle_rad = rotation_ * M_PI / 180.0; // Convert degrees to radians
+
+    geometry_msgs::Pose pose;
+    pose.position.z = depth_; 
+
+    pose.orientation.x = 0.0;
+    pose.orientation.y = 0.0;
+    pose.orientation.z = 0.0;
+    pose.orientation.w = 1.0;
+
     for (auto& point : waypoints) { // modify the waypoints by the real world scale and convert the int values to doubles
-        converted_waypoints.emplace_back(
-            (static_cast<double>(point.first) * scale_ * (-1)) + world_.second,
-            (static_cast<double>(point.second) * scale_) + world_.first
-        );
+        double y = static_cast<double>(point.first);
+        double x = static_cast<double>(point.second);
         // The negative is nessasry to offset inverse nature of the maze.
         // left top of the maze is (0, 0), so to stop going down one being y = 1, which would not work on the real robot, we flip the sign
+        
+        // Apply rotation
+        double rotated_x = (x * cos(angle_rad) - y * sin(angle_rad));
+        double rotated_y = (x * sin(angle_rad) + y * cos(angle_rad));
+
+        double scaled_x = (rotated_x * scale_ ) + world_.first;
+        double scaled_y = (rotated_y * scale_* (-1)) + world_.second;
+                
+        pose.position.x = scaled_x;
+        pose.position.y = scaled_y;
+            
+        converted_waypoints.push_back(pose);
     }
 
     return converted_waypoints;
@@ -170,6 +229,14 @@ void maze_solver::scaleSet(const double& scale){
 
 void maze_solver::worldSet(std::pair<double, double>& world){
     world_ = world;
+}
+
+void maze_solver::rotationSet(const double& rotation){
+    rotation_ = rotation;
+}
+
+void maze_solver::depthSet(const double& depth){
+    depth_ = depth;
 }
 
 void maze_solver::printSolution(const std::vector<std::pair<int, int>>& path) const {
@@ -200,16 +267,13 @@ void maze_solver::printSolution(const std::vector<std::pair<int, int>>& path) co
     }
 }
 
-void maze_solver::printWaypoints(const std::vector<std::pair<double, double>>& waypoints) const {
+void maze_solver::printWaypoints(const std::vector<geometry_msgs::Pose>& waypoints) const {
     std::cout << "\nWaypoints for robot navigation:" << std::endl;
     std::cout << "--------------------------------" << std::endl;
     std::cout << "Total waypoints: " << waypoints.size() << std::endl;
     
     for (size_t i = 0; i < waypoints.size(); i++) {
-        // Convert to (x,y) coordinates where x is the column and y is the row
-        // Note: In our grid, first element is row (y) and second is column (x)
-        std::cout << "Waypoint " << i+1 << ": (" 
-                  << waypoints[i].second << "," 
-                  << waypoints[i].first << ")" << std::endl;
+        const auto& pose = waypoints[i];
+        std::cout << "Position " << i+1 << ": (" << pose.position.x << "," << pose.position.y << "," << pose.position.z << ")" << std::endl;
     }
 }

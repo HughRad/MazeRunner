@@ -6,6 +6,8 @@
 #include <queue>
 #include <utility>
 #include <algorithm>
+#include <cmath>
+#include <geometry_msgs/Pose.h>
 
 class maze_solver
 {
@@ -17,19 +19,25 @@ public:
     // # = Wall
     // . = Open path
 
-    std::vector<std::pair<int, int>> solve(); // Solve the maze using Breadth-First Search and return the path as a vector of coordinates
+    std::vector<geometry_msgs::Pose> pathPlaner();
 
-    std::vector<std::pair<double, double>> generateWaypoints(const std::vector<std::pair<int, int>>& path) const; // Generate waypoints for robot navigation (only at corners)
-
-    void scaleSet(const double& scale);
+    void scaleSet(const double& scale); //waypoint modifier setters
 
     void worldSet(std::pair<double, double>& world);
 
-    void printSolution(const std::vector<std::pair<int, int>>& path) const; // Print the maze with the solution path, for debugging
+    void rotationSet(const double& rotation);
 
-    void printWaypoints(const std::vector<std::pair<double, double>>& waypoints) const; // Print waypoints, for debugging
+    void depthSet(const double& depth);
 
 private:
+
+    std::vector<std::pair<int, int>> solve(); // Solve the maze using Breadth-First Search and return the path as a vector of coordinates
+
+    std::vector<geometry_msgs::Pose> generateWaypoints(const std::vector<std::pair<int, int>>& path) const; // Generate waypoints for robot navigation (only at corners)
+
+    void printSolution(const std::vector<std::pair<int, int>>& path) const; // Print the maze with the solution path, for debugging
+
+    void printWaypoints(const std::vector<geometry_msgs::Pose>& waypoints) const; // Print waypoints, for debugging
 
     std::vector<std::vector<char>> maze; // 2D grid representation of the maze
     
@@ -46,6 +54,8 @@ private:
     // For the robot this distance will need to be ajusted to whatever the real world scale of the maze it. (ie, 1 unit may = 0.72cm, hence we
     // could set the scale to 0.72)
     double scale_; 
+    double rotation_; // Rotation in degrees (clockwise rotation)
+    double depth_; // x coordinate of maze surface
     std::pair<double, double>  world_; // world coord offset for the robot. This should be the real world coord of the left top point of the maze grid. 
     
     bool isValid(int x, int y) const; // function to check if a position is is in the maze not in a wall
