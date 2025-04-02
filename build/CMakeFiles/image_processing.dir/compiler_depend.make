@@ -392,7 +392,9 @@ CMakeFiles/image_processing.dir/src/image_processing.cpp.o: ../src/image_process
   /usr/include/opencv4/opencv2/stitching/detail/camera.hpp \
   /usr/include/opencv4/opencv2/video.hpp \
   /usr/include/opencv4/opencv2/video/tracking.hpp \
-  /usr/include/opencv4/opencv2/video/background_segm.hpp
+  /usr/include/opencv4/opencv2/video/background_segm.hpp \
+  /usr/include/opencv4/opencv2/aruco.hpp \
+  /usr/include/opencv4/opencv2/aruco/dictionary.hpp
 
 CMakeFiles/image_processing.dir/src/main.cpp.o: ../src/main.cpp \
   /usr/include/stdc-predef.h \
@@ -785,10 +787,14 @@ CMakeFiles/image_processing.dir/src/main.cpp.o: ../src/main.cpp \
   /usr/include/opencv4/opencv2/stitching/detail/camera.hpp \
   /usr/include/opencv4/opencv2/video.hpp \
   /usr/include/opencv4/opencv2/video/tracking.hpp \
-  /usr/include/opencv4/opencv2/video/background_segm.hpp
+  /usr/include/opencv4/opencv2/video/background_segm.hpp \
+  /usr/include/opencv4/opencv2/aruco.hpp \
+  /usr/include/opencv4/opencv2/aruco/dictionary.hpp
 
 
 ../src/main.cpp:
+
+/usr/include/opencv4/opencv2/aruco.hpp:
 
 /usr/include/opencv4/opencv2/video/background_segm.hpp:
 
@@ -861,6 +867,8 @@ CMakeFiles/image_processing.dir/src/main.cpp.o: ../src/main.cpp \
 /usr/include/opencv4/opencv2/flann/heap.h:
 
 /usr/include/opencv4/opencv2/flann/dist.h:
+
+/usr/include/opencv4/opencv2/aruco/dictionary.hpp:
 
 /usr/include/opencv4/opencv2/flann/dynamic_bitset.h:
 

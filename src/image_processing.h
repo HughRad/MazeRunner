@@ -2,6 +2,7 @@
 #define IMAGE_PROCESSING_H
 
 #include <opencv2/opencv.hpp>
+#include <opencv2/aruco.hpp>
 #include <vector>
 #include <string>
 
@@ -11,6 +12,17 @@
  */
 class ImageProcessor {
 public:
+    /*!
+     * @struct DebugInfo
+     * @brief Structure to hold debugging information
+     */
+    struct DebugInfo {
+        cv::Mat image;
+        cv::Mat binaryImage;
+        cv::Mat wallsImage;
+        std::vector<cv::Vec4i> walls;
+    };
+
     ImageProcessor();
 
     /**
@@ -18,15 +30,22 @@ public:
      * @param imagePath path to the image file
      * @return a vector of strings representing the maze structure
      */
-    std::vector<std::string> processMaze(const std::string &imagePath);
+    std::vector<std::string> processMaze(const std::string &imagePath, DebugInfo* debugInfo = nullptr);
 
     private:
     /**
-     * @brief Function that preprocesses the image to extract the maze structure
+     * @brief Function that crops the image to the maze boundaries
      * @param image the input image
-     * @return the binary image
+     * @return the cropped image containing only the maze
      */
-    cv::Mat preprocessImage(const cv::Mat& image);
+    cv::Mat cropToMazeBoundaries(const cv::Mat& image);
+
+    /**
+     * @brief Function that preprocesses the image to generate a clean binary image
+     * @param croppedImage the cropped input image
+     * @return the binary image of the maze
+     */
+    cv::Mat preprocessImage(const cv::Mat& croppedImage);
 
     /**
      * @brief Function that detects the walls of the maze
@@ -36,7 +55,7 @@ public:
     std::vector<cv::Vec4i> detectMazeWalls(const cv::Mat& binaryImage);
 
     /**
-     * @brief Function that generates the maze structure from the wall segments
+     * @brief Function that generates a grid array from the wall segments
      * @param walls the detected wall segments of the maze
      * @param binaryImage the binary image of the maze
      * @return a vector of strings representing the maze structure
