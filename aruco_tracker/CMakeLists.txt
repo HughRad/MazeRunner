@@ -37,10 +37,27 @@ target_link_libraries(aruco_tracker_node
   ${OpenCV_LIBRARIES}
 )
 
+# Create snapshot directory in build space
+add_custom_command(
+  TARGET aruco_tracker_node POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/snapshot
+)
+
 install(TARGETS aruco_tracker_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 install(DIRECTORY launch/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
+
+# Install the snapshot directory
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/snapshot/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/snapshot
+)
+
+# Also install any existing snapshot directory from source
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/snapshot/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/snapshot
+  OPTIONAL
 )
