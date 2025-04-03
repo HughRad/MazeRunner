@@ -39,7 +39,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/corso/catkin_ws/src/maze_runner/build/gtest/googletest/cmake_install.cmake")
+  include("/home/corso/ws_moveit/src/maze_runner/build/gtest/googletest/cmake_install.cmake")
 
 endif()
 

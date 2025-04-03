@@ -1,27 +1,28 @@
-<?xml version="1.0"?>
 <package format="2">
   <name>maze_runner</name>
   <version>0.0.1</version>
-  <description>The maze_runner package for controlling a UR3 robot to trace mazes</description>
+  <description>The maze_runner package for controlling a UR robot to trace mazes</description>
 
   <maintainer email="corso@todo.com">Your Name</maintainer>
   <license>TODO</license>
 
   <buildtool_depend>catkin</buildtool_depend>
-  
+
   <build_depend>roscpp</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>moveit_core</build_depend>
   <build_depend>moveit_ros_planning</build_depend>
   <build_depend>moveit_ros_planning_interface</build_depend>
-  
+  <build_depend>ur3_moveit_config</build_depend>  <!-- Change this to ur_moveit_config -->
+  <build_depend>moveit_commander</build_depend>
+
   <exec_depend>roscpp</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>moveit_core</exec_depend>
   <exec_depend>moveit_ros_planning</exec_depend>
   <exec_depend>moveit_ros_planning_interface</exec_depend>
-  <exec_depend>ur3_moveit_config</exec_depend>
-  <exec_depend>ur_robot_driver</exec_depend>
+  <exec_depend>ur3_moveit_config</exec_depend>  <!-- Change this to ur_moveit_config -->
+  <exec_depend>moveit_commander</exec_depend>
 
   <export>
   </export>

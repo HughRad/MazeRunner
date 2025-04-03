@@ -1,23 +1,26 @@
 <launch>
-  <!-- Arguments that can be passed when launching -->
-  <arg name="sim" default="false" doc="Use simulation mode"/>
-  <arg name="maze_file" default="$(find maze_runner)/data/default_maze.txt" doc="Path to maze file"/>
+  <!-- Launch UR3 in Gazebo -->
+  <include file="$(find ur_gazebo)/launch/ur3_bringup.launch"/>
   
-  <!-- Launch the appropriate robot interface -->
-  <group if="$(arg sim)">
-    <!-- Launch simulated robot -->
-    <include file="$(find ur3_moveit_config)/launch/demo.launch"/>
-  </group>
-  <group unless="$(arg sim)">
-    <!-- Launch real robot connection -->
-    <include file="$(find ur_robot_driver)/launch/ur3_bringup.launch">
-      <arg name="robot_ip" value="192.168.1.100"/>  <!-- Replace with your robot's IP -->
-    </include>
-    <include file="$(find ur3_moveit_config)/launch/ur3_moveit_planning_execution.launch"/>
-  </group>
+  <!-- Launch MoveIt for UR3 -->
+  <include file="$(find ur3_moveit_config)/launch/moveit_planning_execution.launch">
+    <arg name="sim" value="true"/>
+  </include>
   
-  <!-- Launch your robot control node -->
-  <node name="robot_control" pkg="maze_runner" type="robot_control" output="screen">
-    <param name="maze_file" value="$(arg maze_file)" />
-  </node>
+  <!-- Launch RViz with a custom maze_runner config-->
+  <node name="rviz" pkg="rviz" type="rviz" required="true" 
+        args="-d $(find maze_runner)/config/rviz_config.rviz"/>
+
+    <!-- Launch the maze_runner node after a delay to ensure everything is loaded -->
+    <node name="maze_runner" pkg="maze_runner" type="maze_runner" output="screen"
+          launch-prefix="bash -c 'sleep 10; $0 $@'">
+        <!-- Specify the planning group name for the UR3 arm -->
+        <param name="planning_group" value="ur3"/>
+        <!-- Hover offset in meters -->
+        <param name="hover_offset" value="0.02"/>
+        <!-- Velocity scaling factor (0.0-1.0) -->
+        <param name="velocity_scaling" value="0.2"/>
+        <!-- Acceleration scaling factor (0.0-1.0) -->
+        <param name="acceleration_scaling" value="0.2"/>
+    </node>
 </launch>

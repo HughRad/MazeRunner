@@ -67,8 +67,8 @@ set(maze_runner_CONFIG_INCLUDED TRUE)
 
 # set variables for source/devel/install prefixes
 if("FALSE" STREQUAL "TRUE")
-  set(maze_runner_SOURCE_PREFIX /home/corso/catkin_ws/src/maze_runner)
-  set(maze_runner_DEVEL_PREFIX /home/corso/catkin_ws/src/maze_runner/build/devel)
+  set(maze_runner_SOURCE_PREFIX /home/corso/ws_moveit/src/maze_runner)
+  set(maze_runner_DEVEL_PREFIX /home/corso/ws_moveit/src/maze_runner/build/devel)
   set(maze_runner_INSTALL_PREFIX "")
   set(maze_runner_PREFIX ${maze_runner_DEVEL_PREFIX})
 else()
@@ -185,7 +185,7 @@ foreach(t ${maze_runner_EXPORTED_TARGETS})
   endif()
 endforeach()
 
-set(depends "roscpp;geometry_msgs;moveit_core;moveit_ros_planning_interface")
+set(depends "roscpp;geometry_msgs;moveit_core;moveit_ros_planning;moveit_ros_planning_interface;moveit_commander")
 foreach(depend ${depends})
   string(REPLACE " " ";" depend_list ${depend})
   # the package name of the dependency must be kept in a unique variable so that it is not overwritten in recursive calls

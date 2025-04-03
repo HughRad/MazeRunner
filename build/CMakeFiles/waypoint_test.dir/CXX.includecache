@@ -6,7 +6,7 @@
 
 #IncludeRegexTransform: 
 
-/home/corso/catkin_ws/src/maze_runner/src/waypoint_test.cpp
+/home/corso/ws_moveit/src/maze_runner/src/waypoint_test.cpp
 ros/ros.h
 -
 moveit/move_group_interface/move_group_interface.h
@@ -14,6 +14,10 @@ moveit/move_group_interface/move_group_interface.h
 geometry_msgs/Pose.h
 -
 vector
+-
+iostream
+-
+limits
 -
 
 /opt/ros/noetic/include/actionlib/action_definition.h

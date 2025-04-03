@@ -98,7 +98,7 @@ public:
         std::cout << "Z coordinate (meters): ";
         std::cin >> target_pose.position.z;
         
-        // Set default orientation (you may want to modify this)
+        // Set default orientation 
         target_pose.orientation.x = 0.0;
         target_pose.orientation.y = 0.0;
         target_pose.orientation.z = 0.0;
@@ -110,15 +110,13 @@ public:
 
 int main(int argc, char** argv)
 {
-    // Initialize ROS
     ros::init(argc, argv, "coordinate_motion_test");
     ros::AsyncSpinner spinner(1);
     spinner.start();
     
-    // Create robot controller
     RobotController robot;
     
-    // Move to home position
+    
     if (!robot.moveToNamedTarget("home")) {
         ROS_ERROR("Could not move to home position");
         return 1;
@@ -127,21 +125,18 @@ int main(int argc, char** argv)
     // Main interaction loop
     char continue_input = 'y';
     while (ros::ok() && (continue_input == 'y' || continue_input == 'Y')) {
-        // Get user-defined pose
         geometry_msgs::Pose target_pose = robot.getUserDefinedPose();
         
-        // Move to the specified pose
         robot.moveToPose(target_pose);
         
-        // Ask if user wants to continue
         std::cout << "Do you want to move to another coordinate? (y/n): ";
         std::cin >> continue_input;
         
-        // Clear input buffer to prevent issues with subsequent inputs
         std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
     }
+
+    robot.moveToNamedTarget("up");
     
-    // Return to home position
     robot.moveToNamedTarget("home");
     
     ros::shutdown();

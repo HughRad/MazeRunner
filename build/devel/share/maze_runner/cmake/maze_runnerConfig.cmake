@@ -67,8 +67,8 @@ set(maze_runner_CONFIG_INCLUDED TRUE)
 
 # set variables for source/devel/install prefixes
 if("TRUE" STREQUAL "TRUE")
-  set(maze_runner_SOURCE_PREFIX /home/corso/catkin_ws/src/maze_runner)
-  set(maze_runner_DEVEL_PREFIX /home/corso/catkin_ws/src/maze_runner/build/devel)
+  set(maze_runner_SOURCE_PREFIX /home/corso/ws_moveit/src/maze_runner)
+  set(maze_runner_DEVEL_PREFIX /home/corso/ws_moveit/src/maze_runner/build/devel)
   set(maze_runner_INSTALL_PREFIX "")
   set(maze_runner_PREFIX ${maze_runner_DEVEL_PREFIX})
 else()
@@ -110,7 +110,7 @@ if(NOT " " STREQUAL " ")
         message(FATAL_ERROR "Project 'maze_runner' specifies '${idir}' as an include dir, which is not found.  It does not exist in '${include}'.  ${_report}")
       endif()
     else()
-      message(FATAL_ERROR "Project 'maze_runner' specifies '${idir}' as an include dir, which is not found.  It does neither exist as an absolute directory nor in '/home/corso/catkin_ws/src/maze_runner/${idir}'.  ${_report}")
+      message(FATAL_ERROR "Project 'maze_runner' specifies '${idir}' as an include dir, which is not found.  It does neither exist as an absolute directory nor in '/home/corso/ws_moveit/src/maze_runner/${idir}'.  ${_report}")
     endif()
     _list_append_unique(maze_runner_INCLUDE_DIRS ${include})
   endforeach()
@@ -154,7 +154,7 @@ foreach(library ${libraries})
     set(lib_path "")
     set(lib "${library}-NOTFOUND")
     # since the path where the library is found is returned we have to iterate over the paths manually
-    foreach(path /home/corso/catkin_ws/src/maze_runner/build/devel/lib;/opt/ros/noetic/lib)
+    foreach(path /home/corso/ws_moveit/src/maze_runner/build/devel/lib;/opt/ros/noetic/lib)
       find_library(lib ${library}
         PATHS ${path}
         NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
@@ -185,7 +185,7 @@ foreach(t ${maze_runner_EXPORTED_TARGETS})
   endif()
 endforeach()
 
-set(depends "roscpp;geometry_msgs;moveit_core;moveit_ros_planning_interface")
+set(depends "roscpp;geometry_msgs;moveit_core;moveit_ros_planning;moveit_ros_planning_interface;moveit_commander")
 foreach(depend ${depends})
   string(REPLACE " " ";" depend_list ${depend})
   # the package name of the dependency must be kept in a unique variable so that it is not overwritten in recursive calls

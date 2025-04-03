@@ -1,4 +1,4 @@
-# Install script for directory: /home/corso/catkin_ws/src/maze_runner
+# Install script for directory: /home/corso/ws_moveit/src/maze_runner
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -56,7 +56,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "/usr/local" TYPE PROGRAM FILES "/home/corso/catkin_ws/src/maze_runner/build/catkin_generated/installspace/_setup_util.py")
+file(INSTALL DESTINATION "/usr/local" TYPE PROGRAM FILES "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/_setup_util.py")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
@@ -68,7 +68,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "/usr/local" TYPE PROGRAM FILES "/home/corso/catkin_ws/src/maze_runner/build/catkin_generated/installspace/env.sh")
+file(INSTALL DESTINATION "/usr/local" TYPE PROGRAM FILES "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/env.sh")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
@@ -81,8 +81,8 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
 file(INSTALL DESTINATION "/usr/local" TYPE FILE FILES
-    "/home/corso/catkin_ws/src/maze_runner/build/catkin_generated/installspace/setup.bash"
-    "/home/corso/catkin_ws/src/maze_runner/build/catkin_generated/installspace/local_setup.bash"
+    "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/setup.bash"
+    "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/local_setup.bash"
     )
 endif()
 
@@ -96,8 +96,8 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
 file(INSTALL DESTINATION "/usr/local" TYPE FILE FILES
-    "/home/corso/catkin_ws/src/maze_runner/build/catkin_generated/installspace/setup.sh"
-    "/home/corso/catkin_ws/src/maze_runner/build/catkin_generated/installspace/local_setup.sh"
+    "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/setup.sh"
+    "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/local_setup.sh"
     )
 endif()
 
@@ -111,8 +111,8 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
 file(INSTALL DESTINATION "/usr/local" TYPE FILE FILES
-    "/home/corso/catkin_ws/src/maze_runner/build/catkin_generated/installspace/setup.zsh"
-    "/home/corso/catkin_ws/src/maze_runner/build/catkin_generated/installspace/local_setup.zsh"
+    "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/setup.zsh"
+    "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/local_setup.zsh"
     )
 endif()
 
@@ -125,51 +125,71 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-file(INSTALL DESTINATION "/usr/local" TYPE FILE FILES "/home/corso/catkin_ws/src/maze_runner/build/catkin_generated/installspace/.rosinstall")
+file(INSTALL DESTINATION "/usr/local" TYPE FILE FILES "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/.rosinstall")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" TYPE FILE FILES "/home/corso/catkin_ws/src/maze_runner/build/catkin_generated/installspace/maze_runner.pc")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig" TYPE FILE FILES "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/maze_runner.pc")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/maze_runner/cmake" TYPE FILE FILES
-    "/home/corso/catkin_ws/src/maze_runner/build/catkin_generated/installspace/maze_runnerConfig.cmake"
-    "/home/corso/catkin_ws/src/maze_runner/build/catkin_generated/installspace/maze_runnerConfig-version.cmake"
+    "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/maze_runnerConfig.cmake"
+    "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/maze_runnerConfig-version.cmake"
     )
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/maze_runner" TYPE FILE FILES "/home/corso/catkin_ws/src/maze_runner/package.xml")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/maze_runner" TYPE FILE FILES "/home/corso/ws_moveit/src/maze_runner/package.xml")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  if(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/robot_control" AND
-     NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/robot_control")
+  if(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/maze_runner" AND
+     NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/maze_runner")
     file(RPATH_CHECK
-         FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/robot_control"
+         FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/maze_runner"
          RPATH "")
   endif()
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/maze_runner" TYPE EXECUTABLE FILES "/home/corso/catkin_ws/src/maze_runner/build/devel/lib/maze_runner/robot_control")
-  if(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/robot_control" AND
-     NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/robot_control")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/maze_runner" TYPE EXECUTABLE FILES "/home/corso/ws_moveit/src/maze_runner/build/devel/lib/maze_runner/maze_runner")
+  if(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/maze_runner" AND
+     NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/maze_runner")
     file(RPATH_CHANGE
-         FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/robot_control"
+         FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/maze_runner"
          OLD_RPATH "/opt/ros/noetic/lib:/opt/ros/noetic/lib/x86_64-linux-gnu:"
          NEW_RPATH "")
     if(CMAKE_INSTALL_DO_STRIP)
-      execute_process(COMMAND "/usr/bin/strip" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/robot_control")
+      execute_process(COMMAND "/usr/bin/strip" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/maze_runner")
     endif()
   endif()
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/maze_runner/launch" TYPE FILE FILES "/home/corso/catkin_ws/src/maze_runner/launch/maze_runner.launch")
+  if(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/waypoint_test" AND
+     NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/waypoint_test")
+    file(RPATH_CHECK
+         FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/waypoint_test"
+         RPATH "")
+  endif()
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/maze_runner" TYPE EXECUTABLE FILES "/home/corso/ws_moveit/src/maze_runner/build/devel/lib/maze_runner/waypoint_test")
+  if(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/waypoint_test" AND
+     NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/waypoint_test")
+    file(RPATH_CHANGE
+         FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/waypoint_test"
+         OLD_RPATH "/opt/ros/noetic/lib:/opt/ros/noetic/lib/x86_64-linux-gnu:"
+         NEW_RPATH "")
+    if(CMAKE_INSTALL_DO_STRIP)
+      execute_process(COMMAND "/usr/bin/strip" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/waypoint_test")
+    endif()
+  endif()
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/maze_runner/launch" TYPE FILE FILES "/home/corso/ws_moveit/src/maze_runner/launch/maze_runner.launch")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/corso/catkin_ws/src/maze_runner/build/gtest/cmake_install.cmake")
+  include("/home/corso/ws_moveit/src/maze_runner/build/gtest/cmake_install.cmake")
 
 endif()
 
@@ -181,5 +201,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/corso/catkin_ws/src/maze_runner/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/corso/ws_moveit/src/maze_runner/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

@@ -1,2 +1,2 @@
 - setup-file:
-    local-name: /home/corso/catkin_ws/src/maze_runner/build/devel/setup.sh
+    local-name: /home/corso/ws_moveit/src/maze_runner/build/devel/setup.sh
