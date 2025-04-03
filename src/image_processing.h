@@ -61,6 +61,14 @@ public:
      * @return a vector of strings representing the maze structure
      */
     std::vector<std::string> generateMazeArray(const std::vector<cv::Vec4i>& walls, const cv::Mat& binaryImage);
+
+    /**
+     * @brief Detects start and end points in the maze
+     * @param maze Reference to the maze array
+     * @param mazeSize Size of the maze grid
+     * @return std::pair<bool, bool> indicating if start and end were found
+     */
+    std::pair<bool, bool> detectStartEndPoints(std::vector<std::string>& maze, const int mazeSize);
 };
 
 #endif // IMAGE_PROCESSING_H

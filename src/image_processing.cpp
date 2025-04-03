@@ -42,17 +42,17 @@ std::vector<std::string> ImageProcessor::processMaze(const std::string& imagePat
 cv::Mat ImageProcessor::cropToMazeBoundaries(const cv::Mat& image) {
     cv::Mat croppedImage;
 
-    // Load predefined ArUco dictionary
-    cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
+    // Load ArUco dictionary and parameters
+    cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
+    cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
     
     // Detect ArUco markers
     std::vector<int> markerIds;
     std::vector<std::vector<cv::Point2f>> markerCorners;
-    cv::aruco::detectMarkers(image, dictionary, markerCorners, markerIds);
+    cv::aruco::detectMarkers(image, dictionary, markerCorners, markerIds, parameters);
 
     // Debug output
-    std::cout << "Number of markers detected: " << markerIds.size() << std::endl;
-    if (markerIds.size() < 2) {
+    if (markerIds.size() != 2) {
         std::cerr << "Error: Could not detect ArUco markers." << std::endl;
         return image; // Return original image if markers aren't found
     }
@@ -67,7 +67,7 @@ cv::Mat ImageProcessor::cropToMazeBoundaries(const cv::Mat& image) {
     cv::Rect boundingBox = cv::boundingRect(allPoints);
 
     // Define a margin to remove the markers
-    int margin = 120; // Adjust based on marker size
+    int margin = 100; // Adjust based on marker size
     cv::Rect mazeRegion(
         std::max(0, boundingBox.x + margin),
         std::max(0, boundingBox.y + margin),
@@ -154,7 +154,7 @@ std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv:
 }
 */
 std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv::Vec4i>& walls, const cv::Mat& binaryImage) {
-    const int MAZE_SIZE = 19; // Fixed 9x9 grid
+    const int MAZE_SIZE = 19; // Fixed grid
     std::vector<std::string> maze(MAZE_SIZE, std::string(MAZE_SIZE, '.'));
 
     // Calculate cell size based on image dimensions
@@ -191,8 +191,52 @@ std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv:
         }
     }
 
+    // Detect start and end points
+    auto [startFound, endFound] = detectStartEndPoints(maze, MAZE_SIZE);
+
     // Debug output
     std::cout << "Generated " << MAZE_SIZE << "x" << MAZE_SIZE << " maze:" << std::endl;
+    if (!startFound) std::cout << "Warning: No start point found!" << std::endl;
+    if (!endFound) std::cout << "Warning: No end point found!" << std::endl;
     
     return maze;
+}
+
+std::pair<bool, bool> ImageProcessor::detectStartEndPoints(std::vector<std::string>& maze, const int mazeSize) {
+    bool startFound = false;
+    bool endFound = false;
+
+    // Find start point (gap in top or left wall)
+    // Check top wall
+    for (int j = 0; j < mazeSize && !startFound; j++) {
+        if (maze[0][j] == '.' && maze[1][j] == '.') {
+            maze[0][j] = 'S';
+            startFound = true;
+        }
+    }
+    // Check left wall if start not found
+    for (int i = 0; i < mazeSize && !startFound; i++) {
+        if (maze[i][0] == '.' && maze[i][1] == '.') {
+            maze[i][0] = 'S';
+            startFound = true;
+        }
+    }
+
+    // Find end point (gap in bottom or right wall)
+    // Check bottom wall
+    for (int j = 0; j < mazeSize && !endFound; j++) {
+        if (maze[mazeSize-1][j] == '.' && maze[mazeSize-2][j] == '.') {
+            maze[mazeSize-1][j] = 'E';
+            endFound = true;
+        }
+    }
+    // Check right wall if end not found
+    for (int i = 0; i < mazeSize && !endFound; i++) {
+        if (maze[i][mazeSize-1] == '.' && maze[i][mazeSize-2] == '.') {
+            maze[i][mazeSize-1] = 'E';
+            endFound = true;
+        }
+    }
+
+    return {startFound, endFound};
 }
