@@ -4,6 +4,8 @@
 #include <vector>
 #include <iostream>
 #include <limits>
+#include "maze_solver.h"
+
 
 class RobotController {
 private:

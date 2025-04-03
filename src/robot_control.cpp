@@ -7,6 +7,8 @@
 #include <actionlib/client/simple_action_client.h>
 #include <moveit_msgs/MoveGroupAction.h>
 #include <sensor_msgs/JointState.h>
+#include "maze_solver.h"
+
 
 class DrawingRobot {
 private:
@@ -52,6 +54,8 @@ public:
             ROS_INFO("Joint state monitoring active.");
         }
     }
+
+    
 
     // Joint state callback
     void jointStateCallback(const sensor_msgs::JointState::ConstPtr& msg) {
@@ -289,72 +293,93 @@ public:
     }
     
     // Execute Cartesian path through waypoints with improved synchronization
-    bool executeCartesianPath(const std::vector<std::vector<double>>& waypoints) {
-        if (waypoints.empty()) {
-            ROS_ERROR("No waypoints provided for path");
-            return false;
-        }
+    // Execute Cartesian path through waypoints with improved synchronization
+bool executeCartesianPath(const std::vector<geometry_msgs::Pose>& waypoints) {
+    if (waypoints.empty()) {
+        ROS_ERROR("No waypoints provided for path");
+        return false;
+    }
+    
+    ROS_INFO("Starting Cartesian path execution with %lu waypoints", waypoints.size());
+    
+    // Get first waypoint
+    geometry_msgs::Pose first_pose = waypoints[0];
+    
+    // Start by moving to hover position above first waypoint
+    geometry_msgs::Pose hover_pose = getHoverPose(first_pose);
+    
+    if (!moveToPose(hover_pose)) {
+        ROS_ERROR("Failed to move to hover position above starting point");
+        return false;
+    }
+    
+    // Wait for controller to stabilize
+    waitForControllerSync();
+    
+    // Lower to starting point
+    if (!moveToPose(first_pose)) {
+        ROS_ERROR("Failed to lower to starting point");
+        return false;
+    }
+    
+    // Wait for controller to stabilize
+    waitForControllerSync();
+    
+    // Prepare waypoint poses for Cartesian path - start from second waypoint
+    std::vector<geometry_msgs::Pose> cartesian_waypoints;
+    
+    // Start from the second waypoint (index 1) since we're already at the first
+    for (size_t i = 1; i < waypoints.size(); i++) {
+        cartesian_waypoints.push_back(waypoints[i]);
+        ROS_INFO("Added waypoint %lu: [%f, %f, %f]", 
+                 i, waypoints[i].position.x, waypoints[i].position.y, waypoints[i].position.z);
+    }
+    
+    if (cartesian_waypoints.empty()) {
+        ROS_ERROR("No valid waypoints to follow after the first one");
+        return false;
+    }
+    
+    // IMPORTANT: Explicitly sync the start state with the current robot state
+    move_group_.setStartStateToCurrentState();
+    
+    // Wait for controller to stabilize
+    waitForControllerSync();
+    
+    // Execute the Cartesian path
+    moveit_msgs::RobotTrajectory trajectory;
+    double fraction = move_group_.computeCartesianPath(
+        cartesian_waypoints, 0.01, 0.0, trajectory);
+    
+    ROS_INFO("Computed Cartesian path (%.2f%% achieved)", fraction * 100.0);
+    
+    if (fraction >= 0.95) {
+        // Record start time to measure execution duration
+        ros::Time start_time = ros::Time::now();
         
-        ROS_INFO("Starting Cartesian path execution with %lu waypoints", waypoints.size());
+        // Execute the motion
+        move_group_.execute(trajectory);
         
-        // Convert first waypoint to geometry_msgs::Pose
-        geometry_msgs::Pose first_pose = makePose(waypoints[0][0], waypoints[0][1], waypoints[0][2]);
-        
-        // Start by moving to hover position above first waypoint
-        geometry_msgs::Pose hover_pose = getHoverPose(first_pose);
-        
-        if (!moveToPose(hover_pose)) {
-            ROS_ERROR("Failed to move to hover position above starting point");
-            return false;
-        }
-        
-        // Wait for controller to stabilize
+        // Wait for execution to complete and controller to stabilize
         waitForControllerSync();
         
-        // Lower to starting point
-        if (!moveToPose(first_pose)) {
-            ROS_ERROR("Failed to lower to starting point");
-            return false;
-        }
+        ros::Time end_time = ros::Time::now();
+        double duration = (end_time - start_time).toSec();
         
-        // Wait for controller to stabilize
-        waitForControllerSync();
+        ROS_INFO("Executed Cartesian path successfully (execution time: %.2f seconds)", duration);
         
-        // Prepare waypoint poses for Cartesian path
-        std::vector<geometry_msgs::Pose> waypoint_poses;
+        // Lift the pen after completion
+        hover_pose = getHoverPose(move_group_.getCurrentPose().pose);
+        moveToPose(hover_pose);
         
-        // Start from the second waypoint (index 1) since we're already at the first
-        for (size_t i = 1; i < waypoints.size(); i++) {
-            // Make sure each waypoint has at least x, y, z coordinates
-            if (waypoints[i].size() >= 3) {
-                geometry_msgs::Pose pose = makePose(waypoints[i][0], waypoints[i][1], waypoints[i][2]);
-                waypoint_poses.push_back(pose);
-                ROS_INFO("Added waypoint %lu: [%f, %f, %f]", 
-                         i, waypoints[i][0], waypoints[i][1], waypoints[i][2]);
-            } else {
-                ROS_WARN("Skipping waypoint %lu - insufficient coordinates", i);
-            }
-        }
+        return true;
+    } else {
+        ROS_WARN("Could only compute %.2f%% of the Cartesian path", fraction * 100.0);
         
-        if (waypoint_poses.empty()) {
-            ROS_ERROR("No valid waypoints to follow after the first one");
-            return false;
-        }
-        
-        // IMPORTANT: Explicitly sync the start state with the current robot state
-        move_group_.setStartStateToCurrentState();
-        
-        // Wait for controller to stabilize
-        waitForControllerSync();
-        
-        // Execute the Cartesian path
-        moveit_msgs::RobotTrajectory trajectory;
-        double fraction = move_group_.computeCartesianPath(
-            waypoint_poses, 0.01, 0.0, trajectory);
-        
-        ROS_INFO("Computed Cartesian path (%.2f%% achieved)", fraction * 100.0);
-        
-        if (fraction >= 0.95) {
+        // Try to execute the partial path if it's reasonably complete
+        if (fraction > 0.5) {
+            ROS_INFO("Executing partial Cartesian path...");
+            
             // Record start time to measure execution duration
             ros::Time start_time = ros::Time::now();
             
@@ -367,44 +392,18 @@ public:
             ros::Time end_time = ros::Time::now();
             double duration = (end_time - start_time).toSec();
             
-            ROS_INFO("Executed Cartesian path successfully (execution time: %.2f seconds)", duration);
+            ROS_INFO("Executed partial Cartesian path (execution time: %.2f seconds)", duration);
             
             // Lift the pen after completion
             hover_pose = getHoverPose(move_group_.getCurrentPose().pose);
             moveToPose(hover_pose);
             
             return true;
-        } else {
-            ROS_WARN("Could only compute %.2f%% of the Cartesian path", fraction * 100.0);
-            
-            // Try to execute the partial path if it's reasonably complete
-            if (fraction > 0.5) {
-                ROS_INFO("Executing partial Cartesian path...");
-                
-                // Record start time to measure execution duration
-                ros::Time start_time = ros::Time::now();
-                
-                // Execute the motion
-                move_group_.execute(trajectory);
-                
-                // Wait for execution to complete and controller to stabilize
-                waitForControllerSync();
-                
-                ros::Time end_time = ros::Time::now();
-                double duration = (end_time - start_time).toSec();
-                
-                ROS_INFO("Executed partial Cartesian path (execution time: %.2f seconds)", duration);
-                
-                // Lift the pen after completion
-                hover_pose = getHoverPose(move_group_.getCurrentPose().pose);
-                moveToPose(hover_pose);
-                
-                return true;
-            }
-            
-            return false;
         }
+        
+        return false;
     }
+}
     
     // Add a robust recovery method to handle joint state errors
     bool recoverFromJointStateError(int retry_count = 3) {
@@ -502,48 +501,82 @@ int main(int argc, char** argv)
     
     ROS_INFO("Robot successfully initialized to specified joint configuration");
     
-    // Define Cartesian waypoints as a variable
-    // Each sub-vector contains {x, y, z} coordinates
-    std::vector<std::vector<double>> cartesian_waypoints = {
-        {0.3, 0.2, 0.1},    // Starting point
-        {0.3, 0.3, 0.1},    // Next point
-        {0.4, 0.3, 0.1},    // Next point
-        {0.4, 0.2, 0.1},    // Next point
-        {0.3, 0.2, 0.1}     // Back to starting point (closed path)
+    //get the maze layout as a string (should be given by Ryan)
+    std::vector<std::string> maze = {
+        "####################",
+        "#...#..............#",
+        "###.#.############.#",
+        "#...#.#..........#.#",
+        "#.###.#.##########.#",
+        "#.#...#.#........#.#",
+        "#.#.###.#.######.#.#",
+        "S...#...#.#....#.#.#",
+        "###.#.###.#.##.#.#.#",
+        "#...#.....#.#..#.#.#",
+        "#.#######.#.#.##.#.#",
+        "#.#.......#.#....#.#",
+        "#.#.###.###.######.E",
+        "#...#.....#......#.#",
+        "#####.###.######.#.#",
+        "#.....#...#....#.#.#",
+        "#.#####.###.#.##.#.#",
+        "#....#...#..#......#",
+        "#.####.###.#######.#",
+        "####################"
     };
-    
+
+    // Create a maze_solver object with the maze string as an input
+    maze_solver solver(maze);
+
+    //set waypoint parameters
+    double scale = 1; //set as distance between maze grid points (manualy measured)
+    std::pair<double, double>  world = {0, 0}; //set as the world coords of the mazes left top most point (should be given by nick)
+    double rotation = 0; // Rotation of maze in degrees - clockwise rotation (should be given by nick)
+    double depth = 0; // set as the drawing depth (should be given by nick)
+
+    solver.scaleSet(scale);
+    solver.worldSet(world);
+    solver.rotationSet(rotation);
+    solver.depthSet(depth);
+
+    //solve the maze and output the required robot waypoints in order of execution
+    std::vector<geometry_msgs::Pose> robotWaypoints = solver.pathPlaner();
+
+        
     ROS_INFO("Executing Cartesian path through defined waypoints");
     
-    // Execute the Cartesian path
-    bool path_success = robot.executeCartesianPath(cartesian_waypoints);
+    // Execute the Cartesian path - using the robotWaypoints from your maze solver
+bool path_success = robot.executeCartesianPath(robotWaypoints);
+
+// If path execution fails, try recovery and retry with more robust error handling
+if (!path_success) {
+    ROS_WARN("Cartesian path execution failed. Attempting recovery...");
     
-    // If path execution fails, try recovery and retry with more robust error handling
-    if (!path_success) {
-        ROS_WARN("Cartesian path execution failed. Attempting recovery...");
+    if (robot.recoverFromJointStateError(3)) {
+        // Try again after recovery, but with a smaller subset of waypoints
+        // to increase chances of success
+        ROS_INFO("Retrying with simplified path");
+        std::vector<geometry_msgs::Pose> simplified_waypoints;
         
-        if (robot.recoverFromJointStateError(3)) {
-            // Try again after recovery, but with a smaller subset of waypoints
-            // to increase chances of success
-            ROS_INFO("Retrying with simplified path");
-            std::vector<std::vector<double>> simplified_waypoints;
-            
-            // Only keep every other waypoint to simplify the path
-            for (size_t i = 0; i < cartesian_waypoints.size(); i += 2) {
-                simplified_waypoints.push_back(cartesian_waypoints[i]);
-            }
-            
-            // Make sure we still have the last point to close the path
-            if (simplified_waypoints.back() != cartesian_waypoints.back()) {
-                simplified_waypoints.push_back(cartesian_waypoints.back());
-            }
-            
-            path_success = robot.executeCartesianPath(simplified_waypoints);
-            
-            if (!path_success) {
-                ROS_ERROR("Failed to execute even simplified Cartesian path");
-            }
+        // Only keep every other waypoint to simplify the path
+        for (size_t i = 0; i < robotWaypoints.size(); i += 2) {
+            simplified_waypoints.push_back(robotWaypoints[i]);
+        }
+        
+        // Make sure we still have the last point to close the path
+        if (simplified_waypoints.back().position.x != robotWaypoints.back().position.x ||
+            simplified_waypoints.back().position.y != robotWaypoints.back().position.y ||
+            simplified_waypoints.back().position.z != robotWaypoints.back().position.z) {
+            simplified_waypoints.push_back(robotWaypoints.back());
+        }
+        
+        path_success = robot.executeCartesianPath(simplified_waypoints);
+        
+        if (!path_success) {
+            ROS_ERROR("Failed to execute even simplified Cartesian path");
         }
     }
+}
     
     // Return to the initial joint configuration with improved error handling
     ROS_INFO("Returning to initial configuration");

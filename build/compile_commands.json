@@ -1,6 +1,11 @@
 [
 {
   "directory": "/home/corso/ws_moveit/src/maze_runner/build",
+  "command": "/usr/bin/c++  -DROSCONSOLE_BACKEND_LOG4CXX -DROS_BUILD_SHARED_LIBS=1 -DROS_PACKAGE_NAME=\\\"maze_runner\\\" -Dmaze_solver_lib_EXPORTS -I/opt/ros/noetic/include -I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp -I/usr/include/eigen3 -I/usr/include/bullet  -g -fPIC   -std=c++11 -o CMakeFiles/maze_solver_lib.dir/src/maze_solver.cpp.o -c /home/corso/ws_moveit/src/maze_runner/src/maze_solver.cpp",
+  "file": "/home/corso/ws_moveit/src/maze_runner/src/maze_solver.cpp"
+},
+{
+  "directory": "/home/corso/ws_moveit/src/maze_runner/build",
   "command": "/usr/bin/c++  -DROSCONSOLE_BACKEND_LOG4CXX -DROS_BUILD_SHARED_LIBS=1 -DROS_PACKAGE_NAME=\\\"maze_runner\\\" -I/opt/ros/noetic/include -I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp -I/usr/include/eigen3 -I/usr/include/bullet  -g   -std=c++11 -o CMakeFiles/maze_runner.dir/src/robot_control.cpp.o -c /home/corso/ws_moveit/src/maze_runner/src/robot_control.cpp",
   "file": "/home/corso/ws_moveit/src/maze_runner/src/robot_control.cpp"
 },

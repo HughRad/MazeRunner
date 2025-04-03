@@ -79,6 +79,7 @@ maze_runner_EXTERNAL_OBJECTS =
 
 devel/lib/maze_runner/maze_runner: CMakeFiles/maze_runner.dir/src/robot_control.cpp.o
 devel/lib/maze_runner/maze_runner: CMakeFiles/maze_runner.dir/build.make
+devel/lib/maze_runner/maze_runner: devel/lib/libmaze_solver_lib.so
 devel/lib/maze_runner/maze_runner: /opt/ros/noetic/lib/libmoveit_common_planning_interface_objects.so
 devel/lib/maze_runner/maze_runner: /opt/ros/noetic/lib/libmoveit_planning_scene_interface.so
 devel/lib/maze_runner/maze_runner: /opt/ros/noetic/lib/libmoveit_move_group_interface.so

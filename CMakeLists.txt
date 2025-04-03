@@ -39,6 +39,7 @@ add_executable(maze_runner src/robot_control.cpp)
 add_executable(waypoint_test src/waypoint_test.cpp)
 
 ## Add dependencies to the executable
+
 add_dependencies(maze_runner 
   ${${PROJECT_NAME}_EXPORTED_TARGETS} 
   ${catkin_EXPORTED_TARGETS}
@@ -56,13 +57,17 @@ add_dependencies(waypoint_test
 )
 
 ## Specify libraries to link a library or executable target against
+add_library(maze_solver_lib src/maze_solver.cpp)
+
 target_link_libraries(maze_runner
+  maze_solver_lib
   ${catkin_LIBRARIES}
   ${moveit_core_LIBRARIES}
   ${moveit_ros_planning_interface_LIBRARIES}
 )
 
 target_link_libraries(waypoint_test
+  maze_solver_lib
   ${catkin_LIBRARIES}
   ${moveit_core_LIBRARIES}
   ${moveit_ros_planning_interface_LIBRARIES}

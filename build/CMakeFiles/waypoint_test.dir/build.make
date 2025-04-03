@@ -79,6 +79,7 @@ waypoint_test_EXTERNAL_OBJECTS =
 
 devel/lib/maze_runner/waypoint_test: CMakeFiles/waypoint_test.dir/src/waypoint_test.cpp.o
 devel/lib/maze_runner/waypoint_test: CMakeFiles/waypoint_test.dir/build.make
+devel/lib/maze_runner/waypoint_test: devel/lib/libmaze_solver_lib.so
 devel/lib/maze_runner/waypoint_test: /opt/ros/noetic/lib/libmoveit_common_planning_interface_objects.so
 devel/lib/maze_runner/waypoint_test: /opt/ros/noetic/lib/libmoveit_planning_scene_interface.so
 devel/lib/maze_runner/waypoint_test: /opt/ros/noetic/lib/libmoveit_move_group_interface.so

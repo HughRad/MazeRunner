@@ -168,6 +168,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named maze_solver_lib
+
+# Build rule for target.
+maze_solver_lib: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 maze_solver_lib
+.PHONY : maze_solver_lib
+
+# fast build rule for target.
+maze_solver_lib/fast:
+	$(MAKE) -f CMakeFiles/maze_solver_lib.dir/build.make CMakeFiles/maze_solver_lib.dir/build
+.PHONY : maze_solver_lib/fast
+
+#=============================================================================
 # Target rules for targets named std_srvs_generate_messages_nodejs
 
 # Build rule for target.
@@ -1454,6 +1467,33 @@ gtest/fast:
 	$(MAKE) -f gtest/googletest/CMakeFiles/gtest.dir/build.make gtest/googletest/CMakeFiles/gtest.dir/build
 .PHONY : gtest/fast
 
+src/maze_solver.o: src/maze_solver.cpp.o
+
+.PHONY : src/maze_solver.o
+
+# target to build an object file
+src/maze_solver.cpp.o:
+	$(MAKE) -f CMakeFiles/maze_solver_lib.dir/build.make CMakeFiles/maze_solver_lib.dir/src/maze_solver.cpp.o
+.PHONY : src/maze_solver.cpp.o
+
+src/maze_solver.i: src/maze_solver.cpp.i
+
+.PHONY : src/maze_solver.i
+
+# target to preprocess a source file
+src/maze_solver.cpp.i:
+	$(MAKE) -f CMakeFiles/maze_solver_lib.dir/build.make CMakeFiles/maze_solver_lib.dir/src/maze_solver.cpp.i
+.PHONY : src/maze_solver.cpp.i
+
+src/maze_solver.s: src/maze_solver.cpp.s
+
+.PHONY : src/maze_solver.s
+
+# target to generate assembly for a file
+src/maze_solver.cpp.s:
+	$(MAKE) -f CMakeFiles/maze_solver_lib.dir/build.make CMakeFiles/maze_solver_lib.dir/src/maze_solver.cpp.s
+.PHONY : src/maze_solver.cpp.s
+
 src/robot_control.o: src/robot_control.cpp.o
 
 .PHONY : src/robot_control.o
@@ -1518,6 +1558,7 @@ help:
 	@echo "... install/local"
 	@echo "... list_install_components"
 	@echo "... test"
+	@echo "... maze_solver_lib"
 	@echo "... std_srvs_generate_messages_nodejs"
 	@echo "... std_srvs_generate_messages_lisp"
 	@echo "... std_srvs_generate_messages_eus"
@@ -1620,6 +1661,9 @@ help:
 	@echo "... gmock"
 	@echo "... gtest_main"
 	@echo "... gtest"
+	@echo "... src/maze_solver.o"
+	@echo "... src/maze_solver.i"
+	@echo "... src/maze_solver.s"
 	@echo "... src/robot_control.o"
 	@echo "... src/robot_control.i"
 	@echo "... src/robot_control.s"
