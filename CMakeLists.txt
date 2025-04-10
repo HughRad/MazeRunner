@@ -34,11 +34,19 @@ include_directories(
   ${moveit_commander_INCLUDE_DIRS}
 )
 
-## Declare a C++ executable
+## Declare a C++ executable for each node
 add_executable(maze_runner src/robot_control.cpp)
 add_executable(waypoint_test src/waypoint_test.cpp)
+add_executable(robot_sim src/robot_control.cpp)
 
-## Add dependencies to the executable
+## Add dependencies to the executables
+add_dependencies(robot_sim 
+  ${${PROJECT_NAME}_EXPORTED_TARGETS} 
+  ${catkin_EXPORTED_TARGETS}
+  ${moveit_core_EXPORTED_TARGETS}
+  ${moveit_ros_planning_interface_EXPORTED_TARGETS}
+  ${moveit_commander_EXPORTED_TARGETS}
+)
 
 add_dependencies(maze_runner 
   ${${PROJECT_NAME}_EXPORTED_TARGETS} 
@@ -57,7 +65,15 @@ add_dependencies(waypoint_test
 )
 
 ## Specify libraries to link a library or executable target against
-add_library(maze_solver_lib src/maze_solver.cpp)
+## maze solver is added as a library rather than an executable
+add_library(maze_solver_lib src/maze_solver.cpp)  
+
+target_link_libraries(robot_sim
+  maze_solver_lib
+  ${catkin_LIBRARIES}
+  ${moveit_core_LIBRARIES}
+  ${moveit_ros_planning_interface_LIBRARIES}
+)
 
 target_link_libraries(maze_runner
   maze_solver_lib
@@ -78,7 +94,7 @@ target_link_libraries(waypoint_test
 #############
 
 ## Mark executables for installation
-install(TARGETS maze_runner waypoint_test
+install(TARGETS maze_runner waypoint_test robot_sim
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

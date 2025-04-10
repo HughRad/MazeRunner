@@ -1042,3 +1042,177 @@ make: *** [Makefile:121: cmTC_13769/fast] Error 2
 
 
 
+Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: /home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make cmTC_fdf45/fast && /usr/bin/make -f CMakeFiles/cmTC_fdf45.dir/build.make CMakeFiles/cmTC_fdf45.dir/build
+make[1]: Entering directory '/home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_fdf45.dir/src.c.o
+/usr/bin/cc   -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_fdf45.dir/src.c.o   -c /home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_fdf45
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_fdf45.dir/link.txt --verbose=1
+/usr/bin/cc  -DCMAKE_HAVE_LIBC_PTHREAD    -rdynamic CMakeFiles/cmTC_fdf45.dir/src.c.o  -o cmTC_fdf45 
+/usr/bin/ld: CMakeFiles/cmTC_fdf45.dir/src.c.o: in function `main':
+src.c:(.text+0x46): undefined reference to `pthread_create'
+/usr/bin/ld: src.c:(.text+0x52): undefined reference to `pthread_detach'
+/usr/bin/ld: src.c:(.text+0x63): undefined reference to `pthread_join'
+collect2: error: ld returned 1 exit status
+make[1]: *** [CMakeFiles/cmTC_fdf45.dir/build.make:87: cmTC_fdf45] Error 1
+make[1]: Leaving directory '/home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp'
+make: *** [Makefile:121: cmTC_fdf45/fast] Error 2
+
+
+Source file was:
+#include <pthread.h>
+
+void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make cmTC_ce021/fast && /usr/bin/make -f CMakeFiles/cmTC_ce021.dir/build.make CMakeFiles/cmTC_ce021.dir/build
+make[1]: Entering directory '/home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_ce021.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_ce021.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.16/Modules/CheckFunctionExists.c
+Linking C executable cmTC_ce021
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ce021.dir/link.txt --verbose=1
+/usr/bin/cc  -DCHECK_FUNCTION_EXISTS=pthread_create    -rdynamic CMakeFiles/cmTC_ce021.dir/CheckFunctionExists.c.o  -o cmTC_ce021  -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+collect2: error: ld returned 1 exit status
+make[1]: *** [CMakeFiles/cmTC_ce021.dir/build.make:87: cmTC_ce021] Error 1
+make[1]: Leaving directory '/home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp'
+make: *** [Makefile:121: cmTC_ce021/fast] Error 2
+
+
+
+Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: /home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make cmTC_b0f23/fast && /usr/bin/make -f CMakeFiles/cmTC_b0f23.dir/build.make CMakeFiles/cmTC_b0f23.dir/build
+make[1]: Entering directory '/home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_b0f23.dir/src.c.o
+/usr/bin/cc   -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_b0f23.dir/src.c.o   -c /home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_b0f23
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b0f23.dir/link.txt --verbose=1
+/usr/bin/cc  -DCMAKE_HAVE_LIBC_PTHREAD    -rdynamic CMakeFiles/cmTC_b0f23.dir/src.c.o  -o cmTC_b0f23 
+/usr/bin/ld: CMakeFiles/cmTC_b0f23.dir/src.c.o: in function `main':
+src.c:(.text+0x46): undefined reference to `pthread_create'
+/usr/bin/ld: src.c:(.text+0x52): undefined reference to `pthread_detach'
+/usr/bin/ld: src.c:(.text+0x63): undefined reference to `pthread_join'
+collect2: error: ld returned 1 exit status
+make[1]: *** [CMakeFiles/cmTC_b0f23.dir/build.make:87: cmTC_b0f23] Error 1
+make[1]: Leaving directory '/home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp'
+make: *** [Makefile:121: cmTC_b0f23/fast] Error 2
+
+
+Source file was:
+#include <pthread.h>
+
+void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make cmTC_ef880/fast && /usr/bin/make -f CMakeFiles/cmTC_ef880.dir/build.make CMakeFiles/cmTC_ef880.dir/build
+make[1]: Entering directory '/home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_ef880.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_ef880.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.16/Modules/CheckFunctionExists.c
+Linking C executable cmTC_ef880
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ef880.dir/link.txt --verbose=1
+/usr/bin/cc  -DCHECK_FUNCTION_EXISTS=pthread_create    -rdynamic CMakeFiles/cmTC_ef880.dir/CheckFunctionExists.c.o  -o cmTC_ef880  -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+collect2: error: ld returned 1 exit status
+make[1]: *** [CMakeFiles/cmTC_ef880.dir/build.make:87: cmTC_ef880] Error 1
+make[1]: Leaving directory '/home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp'
+make: *** [Makefile:121: cmTC_ef880/fast] Error 2
+
+
+
+Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: /home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make cmTC_20efc/fast && /usr/bin/make -f CMakeFiles/cmTC_20efc.dir/build.make CMakeFiles/cmTC_20efc.dir/build
+make[1]: Entering directory '/home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_20efc.dir/src.c.o
+/usr/bin/cc   -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_20efc.dir/src.c.o   -c /home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_20efc
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_20efc.dir/link.txt --verbose=1
+/usr/bin/cc  -DCMAKE_HAVE_LIBC_PTHREAD    -rdynamic CMakeFiles/cmTC_20efc.dir/src.c.o  -o cmTC_20efc 
+/usr/bin/ld: CMakeFiles/cmTC_20efc.dir/src.c.o: in function `main':
+src.c:(.text+0x46): undefined reference to `pthread_create'
+/usr/bin/ld: src.c:(.text+0x52): undefined reference to `pthread_detach'
+/usr/bin/ld: src.c:(.text+0x63): undefined reference to `pthread_join'
+collect2: error: ld returned 1 exit status
+make[1]: *** [CMakeFiles/cmTC_20efc.dir/build.make:87: cmTC_20efc] Error 1
+make[1]: Leaving directory '/home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp'
+make: *** [Makefile:121: cmTC_20efc/fast] Error 2
+
+
+Source file was:
+#include <pthread.h>
+
+void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make cmTC_11004/fast && /usr/bin/make -f CMakeFiles/cmTC_11004.dir/build.make CMakeFiles/cmTC_11004.dir/build
+make[1]: Entering directory '/home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_11004.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=pthread_create   -o CMakeFiles/cmTC_11004.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-3.16/Modules/CheckFunctionExists.c
+Linking C executable cmTC_11004
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_11004.dir/link.txt --verbose=1
+/usr/bin/cc  -DCHECK_FUNCTION_EXISTS=pthread_create    -rdynamic CMakeFiles/cmTC_11004.dir/CheckFunctionExists.c.o  -o cmTC_11004  -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+collect2: error: ld returned 1 exit status
+make[1]: *** [CMakeFiles/cmTC_11004.dir/build.make:87: cmTC_11004] Error 1
+make[1]: Leaving directory '/home/corso/ws_moveit/src/maze_runner/build/CMakeFiles/CMakeTmp'
+make: *** [Makefile:121: cmTC_11004/fast] Error 2
+
+
+

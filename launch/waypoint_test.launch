@@ -2,13 +2,6 @@
   <!-- Launch UR3 in Gazebo -->
   <include file="$(find ur_gazebo)/launch/ur3_bringup.launch"/>
 
-  <!-- Load the UR3 controller configuration -->
-  <!--<rosparam file="$(find ur_robot_driver)/config/ur3_controllers.yaml" command="load"/>-->
-  
-  <!-- Spawn the controllers -->
-  <!--<node name="controller_spawner" pkg="controller_manager" type="spawner" 
-          args="joint_state_controller arm_controller" respawn="false" output="screen"/>-->
-  
   <!-- Launch MoveIt for UR3 -->
   <include file="$(find ur3_moveit_config)/launch/moveit_planning_execution.launch">
     <arg name="sim" value="true"/>

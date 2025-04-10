@@ -153,10 +153,10 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
         pose.position.z = depth_; 
         
         // Set orientation as identity quaternion (no rotation)
-        pose.orientation.x = 0.0;
+        pose.orientation.x = 1.0; // For re-orienting goal trajectory about x-axis
         pose.orientation.y = 0.0;
         pose.orientation.z = 0.0;
-        pose.orientation.w = 1.0;
+        pose.orientation.w = 0.0;
         
         converted_waypoints.push_back(pose);
         return converted_waypoints;
@@ -194,10 +194,10 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
     geometry_msgs::Pose pose;
     pose.position.z = depth_; 
 
-    pose.orientation.x = 0.0;
+    pose.orientation.x = 1.0; // For re-orienting goal trajectory about x-axis
     pose.orientation.y = 0.0;
     pose.orientation.z = 0.0;
-    pose.orientation.w = 1.0;
+    pose.orientation.w = 0.0;
 
     for (auto& point : waypoints) { // modify the waypoints by the real world scale and convert the int values to doubles
         double y = static_cast<double>(point.first);

@@ -298,8 +298,6 @@ public:
         ROS_ERROR("No waypoints provided for path");
         return false;
     }
-    // sleep a bit to allow for any last-minute adjustments
-    ros::Duration(2.0).sleep();
     
     ROS_INFO("Starting Cartesian path execution with %lu waypoints", waypoints.size());
     
@@ -346,7 +344,7 @@ public:
     // Execute the Cartesian path for continuous line drawing
     moveit_msgs::RobotTrajectory trajectory;
     double fraction = move_group_.computeCartesianPath(
-        cartesian_waypoints, 0.005, 0.0, trajectory);
+        cartesian_waypoints, 0.01, 0.0, trajectory);
     
     ROS_INFO("Computed Cartesian path (%.2f%% achieved)", fraction * 100.0);
     
@@ -446,7 +444,7 @@ public:
             }
             
             // If we're here, the attempt failed - wait before next try
-            ros::Duration(2.0).sleep();
+            ros::Duration(1.0).sleep();
         }
         
         ROS_ERROR("All recovery attempts failed");
@@ -477,7 +475,7 @@ int main(int argc, char** argv)
     ROS_INFO("Robot starting joint positions: [%s]", joints_str.c_str());
     
     // Define the desired initial joint configuration
-    std::vector<double> initial_joint_positions = {0.0, -1.569, 2.145, -2.143, -1.618, 0.0};
+    std::vector<double> initial_joint_positions = {0.0, -0.894, 2.392, -3.077, -1.576, 0.0};
     
     // Initialize robot with the specified joint configuration
     bool init_success = robot.initializeToPosition(initial_joint_positions);
@@ -496,12 +494,9 @@ int main(int argc, char** argv)
     }
     
     ROS_INFO("Robot successfully initialized to specified joint configuration");
-    
+
     // Allow more time for ROS to fully initialize and connect to the robot
     ros::Duration(5.0).sleep();
-    
-    // Need to add a new function here for integration with nicks code
-    // Velocity based end effector control to image the maze
     
     //get the maze layout as a string (should be given by Ryan)
     std::vector<std::string> maze = {
@@ -534,8 +529,7 @@ int main(int argc, char** argv)
     double scale = 0.01; //set as distance between maze grid points (manualy measured)
     std::pair<double, double>  world = {0.2, 0.2}; //set as the world coords of the mazes left top most point (should be given by nick)
     double rotation = 0; // Rotation of maze in degrees - clockwise rotation (should be given by nick)
-    double depth = 0.145; // set as the drawing depth (should be given by nick)
-    // ~14.5 cm end effector
+    double depth = 0; // set as the drawing depth (should be given by nick)
 
     solver.scaleSet(scale);
     solver.worldSet(world);
@@ -545,8 +539,6 @@ int main(int argc, char** argv)
     //solve the maze and output the required robot waypoints in order of execution
     std::vector<geometry_msgs::Pose> robotWaypoints = solver.pathPlaner();
 
-    std::cout << "Press any key to continue...";
-    std::cin.get();
         
     ROS_INFO("Executing Cartesian path through defined waypoints");
     

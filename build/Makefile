@@ -519,6 +519,19 @@ clean_test_results/fast:
 .PHONY : clean_test_results/fast
 
 #=============================================================================
+# Target rules for targets named robot_sim
+
+# Build rule for target.
+robot_sim: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 robot_sim
+.PHONY : robot_sim
+
+# fast build rule for target.
+robot_sim/fast:
+	$(MAKE) -f CMakeFiles/robot_sim.dir/build.make CMakeFiles/robot_sim.dir/build
+.PHONY : robot_sim/fast
+
+#=============================================================================
 # Target rules for targets named roscpp_generate_messages_lisp
 
 # Build rule for target.
@@ -1501,6 +1514,7 @@ src/robot_control.o: src/robot_control.cpp.o
 # target to build an object file
 src/robot_control.cpp.o:
 	$(MAKE) -f CMakeFiles/maze_runner.dir/build.make CMakeFiles/maze_runner.dir/src/robot_control.cpp.o
+	$(MAKE) -f CMakeFiles/robot_sim.dir/build.make CMakeFiles/robot_sim.dir/src/robot_control.cpp.o
 .PHONY : src/robot_control.cpp.o
 
 src/robot_control.i: src/robot_control.cpp.i
@@ -1510,6 +1524,7 @@ src/robot_control.i: src/robot_control.cpp.i
 # target to preprocess a source file
 src/robot_control.cpp.i:
 	$(MAKE) -f CMakeFiles/maze_runner.dir/build.make CMakeFiles/maze_runner.dir/src/robot_control.cpp.i
+	$(MAKE) -f CMakeFiles/robot_sim.dir/build.make CMakeFiles/robot_sim.dir/src/robot_control.cpp.i
 .PHONY : src/robot_control.cpp.i
 
 src/robot_control.s: src/robot_control.cpp.s
@@ -1519,6 +1534,7 @@ src/robot_control.s: src/robot_control.cpp.s
 # target to generate assembly for a file
 src/robot_control.cpp.s:
 	$(MAKE) -f CMakeFiles/maze_runner.dir/build.make CMakeFiles/maze_runner.dir/src/robot_control.cpp.s
+	$(MAKE) -f CMakeFiles/robot_sim.dir/build.make CMakeFiles/robot_sim.dir/src/robot_control.cpp.s
 .PHONY : src/robot_control.cpp.s
 
 src/waypoint_test.o: src/waypoint_test.cpp.o
@@ -1586,6 +1602,7 @@ help:
 	@echo "... shape_msgs_generate_messages_cpp"
 	@echo "... actionlib_generate_messages_lisp"
 	@echo "... clean_test_results"
+	@echo "... robot_sim"
 	@echo "... roscpp_generate_messages_lisp"
 	@echo "... geometry_msgs_generate_messages_eus"
 	@echo "... std_msgs_generate_messages_nodejs"
