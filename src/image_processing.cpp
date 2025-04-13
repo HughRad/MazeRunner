@@ -40,50 +40,58 @@ std::vector<std::string> ImageProcessor::processMaze(const std::string& imagePat
 }
 
 cv::Mat ImageProcessor::cropToMazeBoundaries(const cv::Mat& image) {
-    cv::Mat croppedImage;
-
-    // Load ArUco dictionary and parameters
+    // Detect ArUco markers
     cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
     cv::Ptr<cv::aruco::DetectorParameters> parameters = cv::aruco::DetectorParameters::create();
     
-    // Detect ArUco markers
     std::vector<int> markerIds;
     std::vector<std::vector<cv::Point2f>> markerCorners;
     cv::aruco::detectMarkers(image, dictionary, markerCorners, markerIds, parameters);
 
-    // Debug output
     if (markerIds.size() != 2) {
-        std::cerr << "Error: Could not detect ArUco markers." << std::endl;
-        return image; // Return original image if markers aren't found
-    }
-
-    // Collect all marker corners
-    std::vector<cv::Point2f> allPoints;
-    for (const auto& corners : markerCorners) {
-        allPoints.insert(allPoints.end(), corners.begin(), corners.end());
-    }
-
-    // Get bounding rectangle of all markers
-    cv::Rect boundingBox = cv::boundingRect(allPoints);
-
-    // Define a margin to remove the markers
-    int margin = 100; // Adjust based on marker size
-    cv::Rect mazeRegion(
-        std::max(0, boundingBox.x + margin),
-        std::max(0, boundingBox.y + margin),
-        std::min(image.cols - boundingBox.x - margin, boundingBox.width - 2 * margin),
-        std::min(image.rows - boundingBox.y - margin, boundingBox.height - 2 * margin)
-    );
-
-    // Ensure cropping region is valid
-    if (mazeRegion.x + mazeRegion.width > image.cols || mazeRegion.y + mazeRegion.height > image.rows) {
-        std::cerr << "Error: Cropping region exceeds image bounds." << std::endl;
+        std::cerr << "Error: Could not detect both ArUco markers." << std::endl;
         return image;
     }
 
-    // Crop the image to the detected maze area
-    croppedImage = image(mazeRegion);
-    return croppedImage;
+    // Get marker positions
+    cv::Point2f marker1Center = (markerCorners[0][0] + markerCorners[0][2]) * 0.5f;
+    cv::Point2f marker2Center = (markerCorners[1][0] + markerCorners[1][2]) * 0.5f;
+
+    // Calculate maze region
+    float markerDistance = cv::norm(marker2Center - marker1Center);
+    cv::Point2f mazeDiagonal = marker2Center - marker1Center;
+    cv::Point2f mazeCenter = marker1Center + mazeDiagonal * 0.5f;
+
+    // Calculate maze dimensions based on marker distance
+    float mazeSize = markerDistance * 0.55f;
+    float halfSize = mazeSize * 0.5f;
+
+    // Create crop region centered between markers
+    cv::Rect mazeRegion(
+        mazeCenter.x - halfSize,
+        mazeCenter.y - halfSize,
+        mazeSize,
+        mazeSize
+    );
+
+    // Ensure crop region is within image bounds
+    mazeRegion.x = std::max(0, mazeRegion.x);
+    mazeRegion.y = std::max(0, mazeRegion.y);
+    mazeRegion.width = std::min(image.cols - mazeRegion.x, mazeRegion.width);
+    mazeRegion.height = std::min(image.rows - mazeRegion.y, mazeRegion.height);
+
+    // Debug visualization
+    cv::Mat debugImage = image.clone();
+    // Draw marker centers
+    cv::circle(debugImage, marker1Center, 5, cv::Scalar(255, 0, 0), -1);
+    cv::circle(debugImage, marker2Center, 5, cv::Scalar(255, 0, 0), -1);
+    // Draw maze region
+    cv::rectangle(debugImage, mazeRegion, cv::Scalar(0, 255, 0), 2);
+    // Draw line between markers
+    cv::line(debugImage, marker1Center, marker2Center, cv::Scalar(0, 0, 255), 2);
+    cv::imshow("Maze Detection", debugImage);
+
+    return image(mazeRegion);
 }
 
 cv::Mat ImageProcessor::preprocessImage(const cv::Mat& croppedImage) {
@@ -104,7 +112,7 @@ std::vector<cv::Vec4i> ImageProcessor::detectMazeWalls(const cv::Mat& binaryImag
     std::vector<cv::Vec4i> lines;
 
     // Use Hough Transform to detect lines in the binary image
-    cv::HoughLinesP(binaryImage, lines, 1, CV_PI / 180, 100, 50, 10);
+    cv::HoughLinesP(binaryImage, lines, 1, CV_PI / 180, 20, 20, 10);
 
     return lines;
 }
@@ -138,7 +146,7 @@ std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv:
     }
 
     // Convert density to walls using a threshold
-    float threshold = 5.0f; // Adjust this value based on your needs
+    float threshold = 20.0f; // Adjust this value based on conversion accuracy (lower = more walls)
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             if (wallDensity.at<float>(i, j) > threshold) {
@@ -154,7 +162,7 @@ std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv:
 }
 */
 std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv::Vec4i>& walls, const cv::Mat& binaryImage) {
-    const int MAZE_SIZE = 19; // Fixed grid
+    const int MAZE_SIZE = 17; // Fixed grid
     std::vector<std::string> maze(MAZE_SIZE, std::string(MAZE_SIZE, '.'));
 
     // Calculate cell size based on image dimensions
@@ -182,7 +190,7 @@ std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv:
     }
 
     // Convert density to walls using a threshold
-    float threshold = 5.0f; // Adjust this value based on your needs
+    float threshold = 20.0f; // Adjust this value based on conversion accuracy (lower = more walls)
     for (int i = 0; i < MAZE_SIZE; i++) {
         for (int j = 0; j < MAZE_SIZE; j++) {
             if (wallDensity.at<float>(i, j) > threshold) {
