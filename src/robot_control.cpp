@@ -504,28 +504,8 @@ int main(int argc, char** argv)
     // Velocity based end effector control to image the maze
     
     //get the maze layout as a string (should be given by Ryan)
-    std::vector<std::string> maze = {
-        "####################",
-        "#...#..............#",
-        "###.#.############.#",
-        "#...#.#..........#.#",
-        "#.###.#.##########.#",
-        "#.#...#.#........#.#",
-        "#.#.###.#.######.#.#",
-        "S...#...#.#....#.#.#",
-        "###.#.###.#.##.#.#.#",
-        "#...#.....#.#..#.#.#",
-        "#.#######.#.#.##.#.#",
-        "#.#.......#.#....#.#",
-        "#.#.###.###.######.E",
-        "#...#.....#......#.#",
-        "#####.###.######.#.#",
-        "#.....#...#....#.#.#",
-        "#.#####.###.#.##.#.#",
-        "#....#...#..#......#",
-        "#.####.###.#######.#",
-        "####################"
-    };
+    ImageProcessor processor; // Initialise image processor
+    std::vector<std::string> maze = processor.processMaze("../images/test_maze.JPG", nullptr); // Convert JPG image to maze string
 
     // Create a maze_solver object with the maze string as an input
     maze_solver solver(maze);
