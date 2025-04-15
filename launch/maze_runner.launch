@@ -1,0 +1,28 @@
+<launch>
+  <!-- Need to launch the robot bring up separately
+  roslaunch ur_robot_driver ur3_bringup.launch robot_ip:=192.168.0.250 (robot ip) -->  
+
+  <!-- Launch MoveIt for UR3 with real robot -->
+  <include file="$(find ur3_moveit_config)/launch/moveit_planning_execution.launch">
+    <arg name="sim" value="false"/>
+    <!-- When using real robot, don't launch the simulator -->
+    <arg name="debug" value="false"/>
+  </include>
+
+  <!-- Launch RViz with a custom maze_runner config -->
+  <node name="rviz" pkg="rviz" type="rviz" required="true"
+        args="-d $(find maze_runner)/config/rviz_config.rviz"/>
+
+  <!-- Launch the maze_runner node after a delay to ensure everything is loaded -->
+  <node name="maze_runner" pkg="maze_runner" type="maze_runner" output="screen"
+        launch-prefix="bash -c 'sleep 10; $0 $@'">
+    <!-- Specify the planning group name for the UR3 arm -->
+    <param name="planning_group" value="manipulator"/>
+    <!-- Hover offset in meters -->
+    <param name="hover_offset" value="0.02"/>
+    <!-- Velocity scaling factor (0.0-1.0) - reduced for safety on real hardware -->
+    <param name="velocity_scaling" value="0.15"/>
+    <!-- Acceleration scaling factor (0.0-1.0) - reduced for safety on real hardware -->
+    <param name="acceleration_scaling" value="0.15"/>
+  </node>
+</launch>
