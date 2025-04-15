@@ -12,9 +12,9 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning
   moveit_ros_planning_interface
   ur3_moveit_config
-  OpenCV
 )
 
+find_package(OpenCV REQUIRED)
 ###################################
 ## catkin specific configuration ##
 ###################################
