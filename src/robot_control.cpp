@@ -8,6 +8,7 @@
 #include <moveit_msgs/MoveGroupAction.h>
 #include <sensor_msgs/JointState.h>
 #include "maze_solver.h"
+#include "image_processing.h"
 
 
 class DrawingRobot {
