@@ -11,7 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_core
   moveit_ros_planning
   moveit_ros_planning_interface
-  ur3_moveit_config 
+  ur3_moveit_config
+  OpenCV
 )
 
 ###################################
@@ -32,6 +33,7 @@ include_directories(
   ${moveit_ros_planning_INCLUDE_DIRS}
   ${moveit_ros_planning_interface_INCLUDE_DIRS}
   ${moveit_commander_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 ## Declare a C++ executable for each node
@@ -65,21 +67,26 @@ add_dependencies(waypoint_test
 )
 
 ## Specify libraries to link a library or executable target against
-## maze solver is added as a library rather than an executable
+## maze solver and image processing is added as a library rather than an executable
 add_library(maze_solver_lib src/maze_solver.cpp)  
+add_library(image_processing src/image_processing.cpp)
 
 target_link_libraries(robot_sim
   maze_solver_lib
+  image_processing
   ${catkin_LIBRARIES}
   ${moveit_core_LIBRARIES}
   ${moveit_ros_planning_interface_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 
 target_link_libraries(maze_runner
   maze_solver_lib
+  image_processing
   ${catkin_LIBRARIES}
   ${moveit_core_LIBRARIES}
   ${moveit_ros_planning_interface_LIBRARIES}
+  ${OpenCV_LIBS}
 )
 
 target_link_libraries(waypoint_test
