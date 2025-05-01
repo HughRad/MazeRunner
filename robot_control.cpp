@@ -202,6 +202,18 @@ ros::Timer velocity_control_timer_;
 DirectionExtractor direction_extractor_;
 Eigen::Vector3d current_direction_;
 
+// Direction extractor configuration parameters
+double min_velocity_threshold_;
+double max_step_scale_;
+
+// Enhanced direction extractor configuration
+void configureDirectionExtractor(double min_velocity_threshold = 0.001, 
+                                double max_step_scale = 5.0) {
+    // Store configuration parameters in the class for reuse
+    min_velocity_threshold_ = min_velocity_threshold;
+    max_step_scale_ = max_step_scale;
+}
+
 // Velocity command callback
 void velocityCallback(const geometry_msgs::Twist::ConstPtr& msg) {
     latest_velocity_ = *msg;
@@ -231,6 +243,17 @@ void velocityControlUpdate(const ros::TimerEvent& event) {
     // Extract movement direction using DirectionExtractor
     current_direction_ = direction_extractor_.extractDirection(latest_velocity_, latest_rotation_);
     
+    // Get more detailed information from the direction extractor
+    double target_distance = direction_extractor_.getTargetDistance();
+    double target_angle = direction_extractor_.getTargetAngle();
+    
+    // Skip if movement is below threshold
+    if (target_distance < min_velocity_threshold_) {
+        ROS_DEBUG_THROTTLE(1.0, "Movement below threshold (%.4f < %.4f). Skipping update.", 
+                          target_distance, min_velocity_threshold_);
+        return;
+    }
+    
     // Get current state
     geometry_msgs::Pose current_pose = getCurrentPose();
     
@@ -241,6 +264,12 @@ void velocityControlUpdate(const ros::TimerEvent& event) {
         velocity_scale_factor_,  // Scale the step size with our configured scale factor
         rotation_received_       // Only apply rotation if we've received rotation data
     );
+    
+    // Log information about the movement
+    ROS_INFO_THROTTLE(0.5, "Moving based on velocity command: distance=%.3f, angle=%.1f°, "
+                           "direction=[%.2f, %.2f, %.2f]",
+                     target_distance, target_angle * 180.0 / M_PI,
+                     current_direction_.x(), current_direction_.y(), current_direction_.z());
     
     // Execute the motion without planning (direct movement)
     executeCartesianMotion(target_pose);
@@ -290,6 +319,9 @@ public:
         // Configure move group settings
         configureMovement();
         
+        // Configure direction extractor
+        configureDirectionExtractor(0.001, 5.0);
+        
         // Set default values for drawing
         hover_offset_ = 0.01; // waypoint when hovering
         
@@ -309,6 +341,58 @@ public:
         } else {
             ROS_INFO("Joint state monitoring active.");
         }
+    }
+
+    // Get the current movement direction vector
+    Eigen::Vector3d getCurrentDirection() const {
+        return current_direction_;
+    }
+    
+    // Get the current target distance from the direction extractor
+    double getCurrentTargetDistance() const {
+        return direction_extractor_.getTargetDistance();
+    }
+    
+    // Get the current target angle from the direction extractor
+    double getCurrentTargetAngle() const {
+        return direction_extractor_.getTargetAngle();
+    }
+    
+    // Advanced method to adjust trajectory based on direction feedback
+    bool adjustTrajectoryUsingDirection(const geometry_msgs::Pose& target_pose,
+                                         double adjustment_factor = 0.5) {
+        // Only adjust if we have a significant movement direction
+        if (current_direction_.norm() < min_velocity_threshold_) {
+            ROS_INFO("No significant direction detected, skipping adjustment");
+            return false;
+        }
+        
+        // Create an adjusted pose based on the current direction
+        geometry_msgs::Pose adjusted_pose = target_pose;
+        
+        // Apply directional adjustment
+        adjusted_pose.position.x += current_direction_.x() * adjustment_factor;
+        adjusted_pose.position.y += current_direction_.y() * adjustment_factor;
+        
+        // Execute the adjusted motion
+        return moveToPose(adjusted_pose);
+    }
+
+    // Set the scale factors for the direction extractor
+    void setDirectionExtractorScaling(double step_scale) {
+        max_step_scale_ = step_scale;
+        ROS_INFO("Direction extractor step scale set to: %.2f", max_step_scale_);
+    }
+    
+    // Set the minimum velocity threshold for the direction extractor
+    void setDirectionExtractorThreshold(double threshold) {
+        min_velocity_threshold_ = threshold;
+        ROS_INFO("Direction extractor velocity threshold set to: %.5f", min_velocity_threshold_);
+    }
+    
+    // Get a reference to the direction extractor for advanced usage
+    DirectionExtractor& getDirectionExtractor() {
+        return direction_extractor_;
     }
 
     std::pair<double, double> getMazeWorldCoordinates() {
@@ -824,6 +908,10 @@ int main(int argc, char** argv)
 
     // Create a direction extractor object for camera alignment
     DirectionExtractor extractor;
+    
+    // Configure the direction extractor with more sensitive thresholds
+    robot.setDirectionExtractorThreshold(0.0005);  // More sensitive
+    robot.setDirectionExtractorScaling(3.0);      // Moderate scaling
 
     // Initialise image processor
     ImageProcessor processor; 
