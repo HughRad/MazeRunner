@@ -178,6 +178,10 @@ ros::Subscriber rotation_sub_;
 ros::Subscriber image_sub_;
 bool image_received_;
 
+// Snapshot subscriber for maze processing
+ros::Subscriber snapshot_sub_;
+bool snapshot_received_;
+
 // Synchronization timeout parameters
 const double sync_timeout_ = 10.0; // Maximum time to wait for sync in seconds
 const double position_tolerance_ = 0.01; // Tolerance for position checking
@@ -340,6 +344,7 @@ public:
           planning_group_(planning_group), 
           joint_state_received_(false),
           image_received_(false),
+          snapshot_received_(false),
           image_processed_(false),
           velocity_received_(false),
           rotation_received_(false),
@@ -502,6 +507,7 @@ public:
         velocity_control_timer_.stop();
         velocity_sub_.shutdown();
         rotation_sub_.shutdown();
+        image_sub_.shutdown(); // Also shut down the image subscriber
         ROS_INFO("Velocity-based control disabled.");
     }
 
@@ -513,7 +519,7 @@ public:
                     velocity_scale_factor_, rotation_scale_factor_);
     }
 
-    // Enables image based control
+    // Enables image based control with snapshot subscription for maze processing
     void enableImageBasedControl() {
         // Enable velocity control first
         enableVelocityControl();
@@ -521,10 +527,14 @@ public:
         // Reset the image received flag
         image_received_ = false;
         
-        // Subscribe to the image topic
+        // Subscribe to the image topic for velocity control
         image_sub_ = nh_.subscribe("/camera/color/image_raw", 1, &DrawingRobot::imageCallback, this);
         
-        ROS_INFO("Velocity control enabled. Will automatically disable when image is received.");
+        // Also subscribe to the snapshot topic for maze processing
+        snapshot_received_ = false;
+        snapshot_sub_ = nh_.subscribe("/aruco_tracker/snapshot", 1, &DrawingRobot::snapshotCallback, this);
+        
+        ROS_INFO("Velocity control enabled. Will automatically switch to maze processing when snapshot is received.");
     }   
 
     // Joint state callback
@@ -533,17 +543,28 @@ public:
         joint_state_received_ = true;
     }
 
-     // Image callback function, processes image
+    // Image callback function for velocity control
     void imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
         if (!image_received_) {
-            ROS_INFO("Image received! Disabling velocity control and storing image.");
+            ROS_INFO("Camera feed active for velocity control.");
             image_received_ = true;
+        }
+        
+        // NOTE: We keep receiving camera images for velocity control
+        // but don't use them for maze processing
+
+        // Only use the camera image for normal operation
+        // Don't process the maze based on these images
+    }
+
+    // Snapshot callback function for maze processing
+    void snapshotCallback(const sensor_msgs::Image::ConstPtr& msg) {
+        if (!snapshot_received_) {
+            ROS_INFO("Snapshot received from ArUco tracker! Processing maze.");
+            snapshot_received_ = true;
             
-            // Disable velocity control
-            disableVelocityControl();
-            
-            // Unsubscribe from the image topic
-            image_sub_.shutdown();
+            // Unsubscribe from the snapshot topic
+            snapshot_sub_.shutdown();
             
             // Convert the ROS image message to OpenCV format
             cv_bridge::CvImagePtr cv_ptr;
@@ -551,7 +572,12 @@ public:
                 cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
                 received_image_ = cv_ptr->image; // Store the image in the class variable
                 image_processed_ = true;
-                ROS_INFO("Image stored successfully. Ready for maze processing.");
+                ROS_INFO("Snapshot processed successfully. Ready for maze processing.");
+                
+                // Now that we have the snapshot for maze processing,
+                // we can safely disable velocity control
+                disableVelocityControl();
+                
             } catch (cv_bridge::Exception& e) {
                 ROS_ERROR("cv_bridge exception: %s", e.what());
                 image_processed_ = false;
@@ -562,7 +588,7 @@ public:
         }
     }
 
-      // Configure movement parameters
+    // Configure movement parameters
     void configureMovement() {
         // Set max velocity and acceleration scaling - lower for drawing precision
         move_group_.setMaxVelocityScalingFactor(0.2);  // 20% of maximum velocity
@@ -1008,15 +1034,23 @@ int main(int argc, char** argv)
     // Allow more time for ROS to fully initialize and connect to the robot
     ros::Duration(5.0).sleep();
     
-    // Enable image-based control
+    // Enable image-based control (which now also subscribes to snapshot topic)
     robot.enableImageBasedControl();
 
-    // Wait for image processing to complete
+    // Wait for snapshot to be received and processed
     ros::Time start_time = ros::Time::now();
-    const double timeout = 60.0; // 60 seconds timeout
+    const double timeout = 120.0; // 120 seconds timeout (longer to allow for proper alignment)
+    ROS_INFO("Waiting for properly aligned snapshot from ArUco tracker...");
     while (!robot.image_processed_ && (ros::Time::now() - start_time).toSec() < timeout) {
         ros::Duration(0.1).sleep();
         ros::spinOnce();
+    }
+
+    if (!robot.image_processed_) {
+        ROS_ERROR("No snapshot received within timeout period. Aborting maze processing.");
+        return 1;
+    } else {
+        ROS_INFO("Snapshot received and processed successfully!");
     }
 
     // Once the image is processed, get the world coordinates and rotation
@@ -1028,7 +1062,7 @@ int main(int argc, char** argv)
     double end_effector_offset = 0.145; // 14.5 cm offset for end effector length
     depth -= end_effector_offset; //apply the offset to the depth
 
-    // Process the maze using the recieved image
+    // Process the maze using the received snapshot
     std::vector<std::string> maze = processor.processMaze(robot.received_image_, nullptr);
     maze_solver solver(maze);
 
