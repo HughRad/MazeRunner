@@ -240,61 +240,86 @@ void velocityControlUpdate(const ros::TimerEvent& event) {
         return;
     }
     
-    // Extract movement direction using DirectionExtractor
-    current_direction_ = direction_extractor_.extractDirection(latest_velocity_, latest_rotation_);
-    
-    // Get more detailed information from the direction extractor
-    double target_distance = direction_extractor_.getTargetDistance();
-    double target_angle = direction_extractor_.getTargetAngle();
-    
-    // Skip if movement is below threshold
-    if (target_distance < min_velocity_threshold_) {
-        ROS_DEBUG_THROTTLE(1.0, "Movement below threshold (%.4f < %.4f). Skipping update.", 
-                          target_distance, min_velocity_threshold_);
-        return;
+    try {
+        // Use a local copy of the latest velocity and rotation for thread safety
+        geometry_msgs::Twist current_velocity_cmd = latest_velocity_;
+        double current_rotation_cmd = latest_rotation_;
+        
+        // Extract movement direction using DirectionExtractor
+        current_direction_ = direction_extractor_.extractDirection(current_velocity_cmd, current_rotation_cmd);
+        
+        // Get more detailed information from the direction extractor
+        double target_distance = direction_extractor_.getTargetDistance();
+        double target_angle = direction_extractor_.getTargetAngle();
+        
+        // Skip if movement is below threshold
+        if (target_distance < min_velocity_threshold_) {
+            ROS_DEBUG_THROTTLE(1.0, "Movement below threshold (%.4f < %.4f). Skipping update.", 
+                              target_distance, min_velocity_threshold_);
+            return;
+        }
+        
+        // Get current state
+        geometry_msgs::Pose current_pose = getCurrentPose();
+        
+        // Generate waypoint using the extracted direction
+        geometry_msgs::Pose target_pose = direction_extractor_.generateWaypoint(
+            current_pose, 
+            velocity_scale_factor_,  // Scale the step size with our configured scale factor
+            rotation_received_       // Only apply rotation if we've received rotation data
+        );
+        
+        // Log information about the movement (avoiding non-ASCII degree symbol)
+        ROS_INFO_THROTTLE(0.5, "Moving based on velocity command: distance=%.3f, angle=%.1f deg, "
+                               "direction=[%.2f, %.2f, %.2f]",
+                         target_distance, target_angle * 180.0 / M_PI,
+                         current_direction_.x(), current_direction_.y(), current_direction_.z());
+        
+        // Execute the motion without planning (direct movement)
+        executeCartesianMotion(target_pose);
     }
-    
-    // Get current state
-    geometry_msgs::Pose current_pose = getCurrentPose();
-    
-    // Generate waypoint using the extracted direction
-    // The step size is scaled by velocity_scale_factor_
-    geometry_msgs::Pose target_pose = direction_extractor_.generateWaypoint(
-        current_pose, 
-        velocity_scale_factor_,  // Scale the step size with our configured scale factor
-        rotation_received_       // Only apply rotation if we've received rotation data
-    );
-    
-    // Log information about the movement
-    ROS_INFO_THROTTLE(0.5, "Moving based on velocity command: distance=%.3f, angle=%.1f°, "
-                           "direction=[%.2f, %.2f, %.2f]",
-                     target_distance, target_angle * 180.0 / M_PI,
-                     current_direction_.x(), current_direction_.y(), current_direction_.z());
-    
-    // Execute the motion without planning (direct movement)
-    executeCartesianMotion(target_pose);
+    catch (const std::exception& e) {
+        ROS_ERROR("Exception in velocity control update: %s", e.what());
+        stopRobot();
+    }
+    catch (...) {
+        ROS_ERROR("Unknown exception in velocity control update");
+        stopRobot();
+    }
 }
 
 // Execute immediate Cartesian motion without full planning
 void executeCartesianMotion(const geometry_msgs::Pose& target_pose) {
-    // For small incremental motions, we can use a simpler approach
-    // Instead of full planning, just send the target directly
-    
-    // Set start state to current
-    move_group_.setStartStateToCurrentState();
-    
-    // Create a vector of waypoints with just the target
-    std::vector<geometry_msgs::Pose> waypoints;
-    waypoints.push_back(target_pose);
-    
-    // Compute cartesian path with very small step size
-    moveit_msgs::RobotTrajectory trajectory;
-    double fraction = move_group_.computeCartesianPath(
-        waypoints, 0.01, 0.0, trajectory);
-    
-    if (fraction > 0.95) {
-        // Execute the trajectory directly
-        move_group_.execute(trajectory);
+    try {
+        // For small incremental motions, we can use a simpler approach
+        // Instead of full planning, just send the target directly
+        
+        // Set start state to current
+        move_group_.setStartStateToCurrentState();
+        
+        // Create a vector of waypoints with just the target
+        std::vector<geometry_msgs::Pose> waypoints;
+        waypoints.push_back(target_pose);
+        
+        // Compute cartesian path with very small step size
+        moveit_msgs::RobotTrajectory trajectory;
+        double fraction = move_group_.computeCartesianPath(
+            waypoints, 0.01, 0.0, trajectory);
+        
+        if (fraction > 0.95) {
+            // Execute the trajectory directly
+            move_group_.execute(trajectory);
+        }
+        else {
+            ROS_WARN_THROTTLE(2.0, "Could not compute full Cartesian path (%.2f%%), skipping motion", 
+                              fraction * 100.0);
+        }
+    }
+    catch (const std::exception& e) {
+        ROS_ERROR("Exception in executeCartesianMotion: %s", e.what());
+    }
+    catch (...) {
+        ROS_ERROR("Unknown exception in executeCartesianMotion");
     }
 }
 
@@ -314,7 +339,21 @@ public:
         : move_group_(planning_group), 
           planning_group_(planning_group), 
           joint_state_received_(false),
+          image_received_(false),
+          image_processed_(false),
+          velocity_received_(false),
+          rotation_received_(false),
+          velocity_control_active_(false),
+          velocity_scale_factor_(1.0),
+          rotation_scale_factor_(0.01),
+          velocity_timeout_(0.5),
+          latest_rotation_(0.0),
+          min_velocity_threshold_(0.001),
+          max_step_scale_(5.0),
           direction_extractor_() {  // Initialize the direction extractor
+        
+        // Initialize current_direction_
+        current_direction_ = Eigen::Vector3d::Zero();
         
         // Configure move group settings
         configureMovement();
@@ -361,21 +400,30 @@ public:
     // Advanced method to adjust trajectory based on direction feedback
     bool adjustTrajectoryUsingDirection(const geometry_msgs::Pose& target_pose,
                                          double adjustment_factor = 0.5) {
-        // Only adjust if we have a significant movement direction
-        if (current_direction_.norm() < min_velocity_threshold_) {
-            ROS_INFO("No significant direction detected, skipping adjustment");
+        try {
+            // Copy current_direction_ for thread safety
+            Eigen::Vector3d dir = current_direction_;
+            
+            // Only adjust if we have a significant movement direction
+            if (dir.norm() < min_velocity_threshold_) {
+                ROS_INFO("No significant direction detected, skipping adjustment");
+                return false;
+            }
+            
+            // Create an adjusted pose based on the current direction
+            geometry_msgs::Pose adjusted_pose = target_pose;
+            
+            // Apply directional adjustment
+            adjusted_pose.position.x += dir.x() * adjustment_factor;
+            adjusted_pose.position.y += dir.y() * adjustment_factor;
+            
+            // Execute the adjusted motion
+            return moveToPose(adjusted_pose);
+        }
+        catch (const std::exception& e) {
+            ROS_ERROR("Exception in adjustTrajectoryUsingDirection: %s", e.what());
             return false;
         }
-        
-        // Create an adjusted pose based on the current direction
-        geometry_msgs::Pose adjusted_pose = target_pose;
-        
-        // Apply directional adjustment
-        adjusted_pose.position.x += current_direction_.x() * adjustment_factor;
-        adjusted_pose.position.y += current_direction_.y() * adjustment_factor;
-        
-        // Execute the adjusted motion
-        return moveToPose(adjusted_pose);
     }
 
     // Set the scale factors for the direction extractor
@@ -419,22 +467,33 @@ public:
 
      // Enables velocity based control 
     void enableVelocityControl() {
-        // Subscribe to velocity and rotation topics
-        velocity_sub_ = nh_.subscribe("aruco_tracker/velocity", 10, &DrawingRobot::velocityCallback, this);
-        rotation_sub_ = nh_.subscribe("aruco_tracker/rotation", 10, &DrawingRobot::rotationCallback, this);
-        
-        // Initialize velocity control parameters
-        velocity_scale_factor_ = 1.0;
-        rotation_scale_factor_ = 0.01;
-        velocity_timeout_ = 0.5; // Stop if no commands received for 0.5 seconds
-        velocity_control_active_ = true;
-        velocity_received_ = false;
-        rotation_received_ = false;
-        
-        // Start the velocity control timer (10 Hz updates)
-        velocity_control_timer_ = nh_.createTimer(ros::Duration(0.1), &DrawingRobot::velocityControlUpdate, this);
-        
-        ROS_INFO("Velocity-based control enabled. Listening to aruco_tracker topics.");
+        try {
+            // Initialize current_direction_ to zero vector
+            current_direction_ = Eigen::Vector3d::Zero();
+            
+            // Reset flags
+            velocity_received_ = false;
+            rotation_received_ = false;
+            
+            // Subscribe to velocity and rotation topics
+            velocity_sub_ = nh_.subscribe("aruco_tracker/velocity", 10, &DrawingRobot::velocityCallback, this);
+            rotation_sub_ = nh_.subscribe("aruco_tracker/rotation", 10, &DrawingRobot::rotationCallback, this);
+            
+            // Initialize velocity control parameters
+            velocity_scale_factor_ = 1.0;
+            rotation_scale_factor_ = 0.01;
+            velocity_timeout_ = 0.5; // Stop if no commands received for 0.5 seconds
+            velocity_control_active_ = true;
+            
+            // Start the velocity control timer (10 Hz updates)
+            velocity_control_timer_ = nh_.createTimer(ros::Duration(0.1), &DrawingRobot::velocityControlUpdate, this);
+            
+            ROS_INFO("Velocity-based control enabled. Listening to aruco_tracker topics.");
+        }
+        catch (const std::exception& e) {
+            ROS_ERROR("Exception in enableVelocityControl: %s", e.what());
+            velocity_control_active_ = false;
+        }
     }
 
     // Disable velocity based control
@@ -903,15 +962,13 @@ int main(int argc, char** argv)
     
     ROS_INFO("Starting UR3 Cartesian waypoint following program");
     
-    // Initialize the robot interface
-    DrawingRobot robot;
-
-    // Create a direction extractor object for camera alignment
-    DirectionExtractor extractor;
-    
-    // Configure the direction extractor with more sensitive thresholds
-    robot.setDirectionExtractorThreshold(0.0005);  // More sensitive
-    robot.setDirectionExtractorScaling(3.0);      // Moderate scaling
+    try {
+        // Initialize the robot interface
+        DrawingRobot robot;
+        
+        // Configure the direction extractor with more sensitive thresholds
+        robot.setDirectionExtractorThreshold(0.0005);  // More sensitive
+        robot.setDirectionExtractorScaling(3.0);      // Moderate scaling
 
     // Initialise image processor
     ImageProcessor processor; 
@@ -1005,4 +1062,13 @@ int main(int argc, char** argv)
     ROS_INFO("Program completed");
     ros::shutdown();
     return 0;
+    }
+    catch (const std::exception& e) {
+        ROS_ERROR("Exception in main: %s", e.what());
+        return 1;
+    }
+    catch (...) {
+        ROS_ERROR("Unknown exception in main");
+        return 1;
+    }
 }
