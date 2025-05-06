@@ -10,7 +10,7 @@ int main() {
     auto start = std::chrono::high_resolution_clock::now();
     
     // Process maze with debug info
-    std::vector<std::string> maze = processor.processMaze("../images/test_maze.JPG", &debugInfo);
+    std::vector<std::string> maze = processor.processMaze("../images/image.png", &debugInfo);
     
     // End timer
     auto end = std::chrono::high_resolution_clock::now();
@@ -18,7 +18,7 @@ int main() {
 
     // Display debug visualizations
     //cv::imshow("Input Image", debugInfo.image);
-    //cv::imshow("Cropped Binary Image", debugInfo.binaryImage);
+    cv::imshow("Cropped Binary Image", debugInfo.binaryImage);
     cv::imshow("Maze Walls", debugInfo.wallsImage);
 
     // Print maze representation

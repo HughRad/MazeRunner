@@ -100,8 +100,8 @@ cv::Mat ImageProcessor::preprocessImage(const cv::Mat& croppedImage) {
     // Convert to grayscale
     cv::cvtColor(croppedImage, gray, cv::COLOR_BGR2GRAY);
 
-    // Reduce noise (blur) using a 5x5 Gaussian filter
-    cv::GaussianBlur(gray, blurred, cv::Size(21, 21), 0);
+    // Reduce noise (blur) using a Gaussian filter (larger kernel size = more blur)
+    cv::GaussianBlur(gray, blurred, cv::Size(25, 25), 0);
 
     // Convert grayscale image to binary (white for walls/black for paths)
     cv::adaptiveThreshold(blurred, binary, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 2);
@@ -112,7 +112,7 @@ std::vector<cv::Vec4i> ImageProcessor::detectMazeWalls(const cv::Mat& binaryImag
     std::vector<cv::Vec4i> lines;
 
     // Use Hough Transform to detect lines in the binary image
-    cv::HoughLinesP(binaryImage, lines, 1, CV_PI / 180, 20, 20, 10);
+    cv::HoughLinesP(binaryImage, lines, 1, CV_PI / 180, 50, 20, 10);
 
     return lines;
 }
@@ -190,7 +190,7 @@ std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv:
     }
 
     // Convert density to walls using a threshold
-    float threshold = 20.0f; // Adjust this value based on conversion accuracy (lower = more walls)
+    float threshold = 19.0f; // Adjust this value based on conversion accuracy (lower = more walls)
     for (int i = 0; i < MAZE_SIZE; i++) {
         for (int j = 0; j < MAZE_SIZE; j++) {
             if (wallDensity.at<float>(i, j) > threshold) {
