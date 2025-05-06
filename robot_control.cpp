@@ -422,6 +422,39 @@ private:
     // Direction extractor configuration parameters
     double min_velocity_threshold_;
     double max_step_scale_;
+    
+    // Add publisher for end effector pose
+    ros::Publisher end_effector_pub_;
+    
+    // Timer for publishing end effector position
+    ros::Timer end_effector_pub_timer_;
+    
+    // End effector publishing rate (Hz)
+    double end_effector_pub_rate_;
+
+    // End effector position publishing callback
+    void publishEndEffectorPose(const ros::TimerEvent& event) {
+        try {
+            // Get current end effector pose
+            geometry_msgs::Pose current_pose = getCurrentPose();
+            
+            // Create PoseStamped message
+            geometry_msgs::PoseStamped pose_stamped;
+            pose_stamped.header.stamp = ros::Time::now();
+            pose_stamped.header.frame_id = "world"; // Use the correct frame ID
+            pose_stamped.pose = current_pose;
+            
+            // Publish the pose
+            end_effector_pub_.publish(pose_stamped);
+            
+            // Log occasionally for debugging
+            ROS_DEBUG_THROTTLE(10.0, "Published end effector pose: [%.3f, %.3f, %.3f]",
+                            current_pose.position.x, current_pose.position.y, current_pose.position.z);
+        }
+        catch (const std::exception& e) {
+            ROS_ERROR_THROTTLE(5.0, "Exception in publishEndEffectorPose: %s", e.what());
+        }
+    }
 
     void initializeCameraCalibration() {
         // These values need to be determined through camera calibration
@@ -592,6 +625,7 @@ public:
           latest_rotation_(0.0),
           min_velocity_threshold_(0.001),
           max_step_scale_(5.0),
+          end_effector_pub_rate_(10.0), // 10 Hz publishing rate
           direction_extractor_() {
         
         // Initialize current_direction_
@@ -611,6 +645,15 @@ public:
         
         // Setup joint state subscriber for monitoring
         joint_state_sub_ = nh_.subscribe("/joint_states", 10, &DrawingRobot::jointStateCallback, this);
+        
+        // Initialize end effector publisher
+        end_effector_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/robot/end_effector_pose", 10);
+        
+        // Start timer for end effector pose publishing
+        end_effector_pub_timer_ = nh_.createTimer(ros::Duration(1.0/end_effector_pub_rate_), 
+                                                &DrawingRobot::publishEndEffectorPose, this);
+        
+        ROS_INFO("End effector pose publisher initialized at %.1f Hz", end_effector_pub_rate_);
         
         // Wait for first joint state to ensure connection
         ROS_INFO("Waiting for first joint state message...");
@@ -1329,6 +1372,27 @@ public:
         
         ROS_ERROR("All recovery attempts failed");
         return false;
+    }
+    
+    // Set end effector publishing rate
+    void setEndEffectorPublishRate(double rate) {
+        end_effector_pub_rate_ = rate;
+        
+        // Restart timer with new rate if it's active
+        if (end_effector_pub_timer_.isValid()) {
+            end_effector_pub_timer_.stop();
+            end_effector_pub_timer_ = nh_.createTimer(ros::Duration(1.0/end_effector_pub_rate_), 
+                                                   &DrawingRobot::publishEndEffectorPose, this);
+        }
+        
+        ROS_INFO("End effector publish rate updated to %.1f Hz", end_effector_pub_rate_);
+    }
+    
+    // Publish end effector pose once (for manual triggering)
+    void publishEndEffectorPoseOnce() {
+        ros::TimerEvent event; // Empty event
+        publishEndEffectorPose(event);
+        ROS_INFO("End effector pose published manually");
     }
 };
 
