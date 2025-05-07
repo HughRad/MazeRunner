@@ -6,7 +6,13 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 
-ArucoTracker::ArucoTracker(ros::NodeHandle& nh) : nh_(nh), it_(nh), snapshot_taken_(false), current_depth_(0.0), current_rotation_(0.0)
+ArucoTracker::ArucoTracker(ros::NodeHandle& nh) : 
+    nh_(nh), 
+    it_(nh), 
+    snapshot_taken_(false), 
+    waypoint_generated_(false),  // Initialize the waypoint flag
+    current_depth_(0.0), 
+    current_rotation_(0.0)
 {
   // Get parameters
   nh_.param<double>("desired_z", desired_z_, 0.3); // Default 0.3 meters
@@ -46,7 +52,7 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) : nh_(nh), it_(nh), snapshot_tak
   snapshot_pub_ = it_.advertise("aruco_tracker/snapshot", 1, true); // Latched publisher
   
   // Publish waypoint
-  waypoint_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("aruco_tracker/waypoint", 1);
+  waypoint_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("aruco_tracker/waypoint", 1, true);  // Use latched publisher for waypoint
   
   // Publish rotation value
   rotation_pub_ = nh_.advertise<std_msgs::Float64>("aruco_tracker/rotation", 1);
@@ -196,14 +202,16 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
     // Calculate the center between specific corners
     cv::Point2f target = calculateCenterBetweenMarkers(top_left_corners, bottom_right_corners);
     
-    // Generate waypoint from target point and depth
-    waypoint_ = generateWaypoint(target, current_depth_);
-    
-    // Calculate rotation (average of both markers)
+    // Calculate rotation for display purposes only
     current_rotation_ = calculateRotation(top_left_corners, bottom_right_corners);
     
-    // Publish the waypoint
-    waypoint_pub_.publish(waypoint_);
+    // Generate waypoint from target point and depth only if not already generated
+    if (!waypoint_generated_) {
+      waypoint_ = generateWaypoint(target, current_depth_);
+      waypoint_pub_.publish(waypoint_);
+      waypoint_generated_ = true;
+      ROS_INFO("Waypoint generated and published - will not update further");
+    }
     
     // Draw visualisation
     drawVisualization(cv_ptr, top_left_corners, bottom_right_corners, target, center, waypoint_, current_rotation_);
@@ -230,17 +238,6 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
       }
     }
   } else {
-    // Reset waypoint to current end effector position if no markers are detected
-    waypoint_.header.stamp = ros::Time::now();
-    waypoint_.pose = end_effector_pose_;
-    current_rotation_ = 0.0;
-    
-    // Publish zeroed data
-    waypoint_pub_.publish(waypoint_);
-    std_msgs::Float64 rotation_msg;
-    rotation_msg.data = current_rotation_;
-    rotation_pub_.publish(rotation_msg);
-    
     // Display warning if not enough markers are detected
     std::string warning = "Need at least 2 ArUco markers";
     cv::putText(cv_ptr->image, warning, cv::Point(20, 30), 
@@ -304,23 +301,17 @@ geometry_msgs::PoseStamped ArucoTracker::generateWaypoint(const cv::Point2f& tar
   waypoint.pose.position.y = point_in_world.y();
   waypoint.pose.position.z = point_in_world.z();
   
-  // Set waypoint orientation - use end effector's current orientation
-  waypoint.pose.orientation = end_effector_pose_.orientation;
+  // Set a fixed orientation for the waypoint - pointing downward
+  // This is a fixed orientation suitable for a robot looking down at a workspace
+  // Quaternion representing end effector pointing downward (x-axis forward, z-axis down)
+  waypoint.pose.orientation.x = 0.7071; // Rotation around y-axis by 90 degrees
+  waypoint.pose.orientation.y = 0.0;
+  waypoint.pose.orientation.z = 0.0;
+  waypoint.pose.orientation.w = 0.7071;
   
-  // Apply any additional rotation if needed (based on ArUco markers' orientation)
-  tf2::Quaternion current_orientation;
-  tf2::fromMsg(waypoint.pose.orientation, current_orientation);
-  
-  // Add rotation around z-axis based on ArUco markers
-  tf2::Quaternion rotation_adjustment;
-  rotation_adjustment.setRPY(0, 0, current_rotation_ * M_PI / 180.0);
-  
-  // Apply rotation
-  tf2::Quaternion new_orientation = current_orientation * rotation_adjustment;
-  new_orientation.normalize();
-  
-  // Set the new orientation
-  tf2::convert(new_orientation, waypoint.pose.orientation);
+  // Log waypoint information
+  ROS_INFO("Generated waypoint at [%.3f, %.3f, %.3f] with fixed downward orientation",
+           waypoint.pose.position.x, waypoint.pose.position.y, waypoint.pose.position.z);
   
   return waypoint;
 }
@@ -365,9 +356,9 @@ void ArucoTracker::drawVisualization(
   cv::putText(cv_ptr->image, ss_distance.str(), cv::Point(center.x + 15, center.y + 15), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
   
-  // Display rotation
+  // Display rotation (for informational purposes only)
   std::stringstream ss_rotation;
-  ss_rotation << "Rotation: " << std::fixed << std::setprecision(1) << rotation << " degrees";
+  ss_rotation << "Marker Rotation: " << std::fixed << std::setprecision(1) << rotation << " degrees";
   cv::putText(cv_ptr->image, ss_rotation.str(), cv::Point(20, 30), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
   
@@ -379,11 +370,17 @@ void ArucoTracker::drawVisualization(
   cv::putText(cv_ptr->image, ss_waypoint.str(), cv::Point(20, 60), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 0), 2);
   
+  // Display waypoint status
+  std::string waypoint_status = waypoint_generated_ ? "GENERATED" : "NOT GENERATED";
+  cv::putText(cv_ptr->image, "Waypoint: " + waypoint_status, cv::Point(20, 90), 
+              cv::FONT_HERSHEY_SIMPLEX, 0.7, 
+              waypoint_generated_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 165, 255), 2);
+  
   // Display depth info
   std::stringstream ss_depth;
   ss_depth << "Current depth: " << std::fixed << std::setprecision(3) << current_depth_ 
           << " m (Target: " << desired_z_ << " m)";
-  cv::putText(cv_ptr->image, ss_depth.str(), cv::Point(20, 90), 
+  cv::putText(cv_ptr->image, ss_depth.str(), cv::Point(20, 120), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
   
   // Draw the rectangular area between the markers
@@ -395,7 +392,7 @@ void ArucoTracker::drawVisualization(
   
   // Draw the snapshot status
   std::string snapshot_text = snapshot_taken_ ? "Snapshot: TAKEN" : "Snapshot: WAITING FOR ALIGNMENT";
-  cv::putText(cv_ptr->image, snapshot_text, cv::Point(20, 120), 
+  cv::putText(cv_ptr->image, snapshot_text, cv::Point(20, 150), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, 
               snapshot_taken_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 165, 255), 2);
 }
