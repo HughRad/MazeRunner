@@ -62,7 +62,7 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
   waypoint_pub_ = nh_.advertise<geometry_msgs::Point>("aruco_tracker/waypoint", 1, true);
   
   // Publish rotation value
-  rotation_pub_ = nh_.advertise<std_msgs::Float64>("aruco_tracker/rotation", 1);
+  rotation_pub_ = nh_.advertise<std_msgs::Float64>("aruco_tracker/rotation", 1, true);
   
   // Initialize end effector pose (default to identity)
   end_effector_pose_.position.x = 0.0;
