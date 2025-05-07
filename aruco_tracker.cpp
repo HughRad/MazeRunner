@@ -202,15 +202,21 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
     // Calculate the center between specific corners
     cv::Point2f target = calculateCenterBetweenMarkers(top_left_corners, bottom_right_corners);
     
-    // Calculate rotation for display purposes only
-    current_rotation_ = calculateRotation(top_left_corners, bottom_right_corners);
-    
     // Generate waypoint from target point and depth only if not already generated
     if (!waypoint_generated_) {
       waypoint_ = generateWaypoint(target, current_depth_);
       waypoint_pub_.publish(waypoint_);
       waypoint_generated_ = true;
       ROS_INFO("Waypoint generated and published - will not update further");
+      
+      // Also publish the current rotation when waypoint is generated
+      current_rotation_ = calculateRotation(top_left_corners, bottom_right_corners);
+      std_msgs::Float64 rotation_msg;
+      rotation_msg.data = current_rotation_;
+      rotation_pub_.publish(rotation_msg);
+    } else {
+      // If waypoint already generated, just update rotation value for display
+      current_rotation_ = calculateRotation(top_left_corners, bottom_right_corners);
     }
     
     // Draw visualisation
@@ -301,17 +307,29 @@ geometry_msgs::PoseStamped ArucoTracker::generateWaypoint(const cv::Point2f& tar
   waypoint.pose.position.y = point_in_world.y();
   waypoint.pose.position.z = point_in_world.z();
   
-  // Set a fixed orientation for the waypoint - pointing downward
-  // This is a fixed orientation suitable for a robot looking down at a workspace
-  // Quaternion representing end effector pointing downward (x-axis forward, z-axis down)
-  waypoint.pose.orientation.x = 0.7071; // Rotation around y-axis by 90 degrees
-  waypoint.pose.orientation.y = 0.0;
-  waypoint.pose.orientation.z = 0.0;
-  waypoint.pose.orientation.w = 0.7071;
+  // Set waypoint orientation - use end effector's current orientation
+  waypoint.pose.orientation = end_effector_pose_.orientation;
+  
+  // Apply any additional rotation if needed (based on ArUco markers' orientation)
+  tf2::Quaternion current_orientation;
+  tf2::fromMsg(waypoint.pose.orientation, current_orientation);
+  
+  // Add rotation around z-axis based on ArUco markers
+  tf2::Quaternion rotation_adjustment;
+  rotation_adjustment.setRPY(0, 0, current_rotation_ * M_PI / 180.0);
+  
+  // Apply rotation
+  tf2::Quaternion new_orientation = current_orientation * rotation_adjustment;
+  new_orientation.normalize();
+  
+  // Set the new orientation
+  tf2::convert(new_orientation, waypoint.pose.orientation);
   
   // Log waypoint information
-  ROS_INFO("Generated waypoint at [%.3f, %.3f, %.3f] with fixed downward orientation",
-           waypoint.pose.position.x, waypoint.pose.position.y, waypoint.pose.position.z);
+  ROS_INFO("Generated waypoint at [%.3f, %.3f, %.3f] with orientation [%.3f, %.3f, %.3f, %.3f]",
+           waypoint.pose.position.x, waypoint.pose.position.y, waypoint.pose.position.z,
+           waypoint.pose.orientation.x, waypoint.pose.orientation.y, 
+           waypoint.pose.orientation.z, waypoint.pose.orientation.w);
   
   return waypoint;
 }
@@ -356,9 +374,9 @@ void ArucoTracker::drawVisualization(
   cv::putText(cv_ptr->image, ss_distance.str(), cv::Point(center.x + 15, center.y + 15), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
   
-  // Display rotation (for informational purposes only)
+  // Display rotation
   std::stringstream ss_rotation;
-  ss_rotation << "Marker Rotation: " << std::fixed << std::setprecision(1) << rotation << " degrees";
+  ss_rotation << "Rotation: " << std::fixed << std::setprecision(1) << rotation << " degrees";
   cv::putText(cv_ptr->image, ss_rotation.str(), cv::Point(20, 30), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
   
