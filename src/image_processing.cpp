@@ -101,10 +101,10 @@ cv::Mat ImageProcessor::preprocessImage(const cv::Mat& croppedImage) {
     cv::cvtColor(croppedImage, gray, cv::COLOR_BGR2GRAY);
 
     // Reduce noise (blur) using a Gaussian filter (larger kernel size = more blur)
-    cv::GaussianBlur(gray, blurred, cv::Size(25, 25), 0);
+    cv::GaussianBlur(gray, blurred, cv::Size(23, 23), 0);
 
     // Convert grayscale image to binary (white for walls/black for paths)
-    cv::adaptiveThreshold(blurred, binary, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 2);
+    cv::adaptiveThreshold(blurred, binary, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 9, 2);
     return binary;
 }
 
@@ -112,7 +112,7 @@ std::vector<cv::Vec4i> ImageProcessor::detectMazeWalls(const cv::Mat& binaryImag
     std::vector<cv::Vec4i> lines;
 
     // Use Hough Transform to detect lines in the binary image
-    cv::HoughLinesP(binaryImage, lines, 1, CV_PI / 180, 50, 20, 10);
+    cv::HoughLinesP(binaryImage, lines, 1, CV_PI / 180, 20, 20, 15);
 
     return lines;
 }
@@ -190,7 +190,7 @@ std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv:
     }
 
     // Convert density to walls using a threshold
-    float threshold = 19.0f; // Adjust this value based on conversion accuracy (lower = more walls)
+    float threshold = 25.0f; // Adjust this value based on conversion accuracy (lower = more walls)
     for (int i = 0; i < MAZE_SIZE; i++) {
         for (int j = 0; j < MAZE_SIZE; j++) {
             if (wallDensity.at<float>(i, j) > threshold) {
@@ -214,15 +214,8 @@ std::pair<bool, bool> ImageProcessor::detectStartEndPoints(std::vector<std::stri
     bool startFound = false;
     bool endFound = false;
 
-    // Find start point (gap in top or left wall)
-    // Check top wall
-    for (int j = 0; j < mazeSize && !startFound; j++) {
-        if (maze[0][j] == '.' && maze[1][j] == '.') {
-            maze[0][j] = 'S';
-            startFound = true;
-        }
-    }
-    // Check left wall if start not found
+    // Priority order for start point: Left -> Top -> Right -> Bottom
+    // Check left wall for start
     for (int i = 0; i < mazeSize && !startFound; i++) {
         if (maze[i][0] == '.' && maze[i][1] == '.') {
             maze[i][0] = 'S';
@@ -230,18 +223,59 @@ std::pair<bool, bool> ImageProcessor::detectStartEndPoints(std::vector<std::stri
         }
     }
 
-    // Find end point (gap in bottom or right wall)
-    // Check bottom wall
-    for (int j = 0; j < mazeSize && !endFound; j++) {
+    // Check top wall for start if not found
+    for (int j = 0; j < mazeSize && !startFound; j++) {
+        if (maze[0][j] == '.' && maze[1][j] == '.') {
+            maze[0][j] = 'S';
+            startFound = true;
+        }
+    }
+
+    // Check right wall for start if not found
+    for (int i = 0; i < mazeSize && !startFound; i++) {
+        if (maze[i][mazeSize-1] == '.' && maze[i][mazeSize-2] == '.') {
+            maze[i][mazeSize-1] = 'S';
+            startFound = true;
+        }
+    }
+
+    // Check bottom wall for start if not found
+    for (int j = 0; j < mazeSize && !startFound; j++) {
         if (maze[mazeSize-1][j] == '.' && maze[mazeSize-2][j] == '.') {
-            maze[mazeSize-1][j] = 'E';
+            maze[mazeSize-1][j] = 'S';
+            startFound = true;
+        }
+    }
+
+    // After finding start, check all walls again for any remaining gaps to mark as end
+    // Check left wall for end
+    for (int i = 0; i < mazeSize && !endFound; i++) {
+        if (maze[i][0] == '.' && maze[i][1] == '.') {
+            maze[i][0] = 'E';
             endFound = true;
         }
     }
-    // Check right wall if end not found
+
+    // Check top wall for end if not found
+    for (int j = 0; j < mazeSize && !endFound; j++) {
+        if (maze[0][j] == '.' && maze[1][j] == '.') {
+            maze[0][j] = 'E';
+            endFound = true;
+        }
+    }
+
+    // Check right wall for end if not found
     for (int i = 0; i < mazeSize && !endFound; i++) {
         if (maze[i][mazeSize-1] == '.' && maze[i][mazeSize-2] == '.') {
             maze[i][mazeSize-1] = 'E';
+            endFound = true;
+        }
+    }
+
+    // Check bottom wall for end if not found
+    for (int j = 0; j < mazeSize && !endFound; j++) {
+        if (maze[mazeSize-1][j] == '.' && maze[mazeSize-2][j] == '.') {
+            maze[mazeSize-1][j] = 'E';
             endFound = true;
         }
     }
