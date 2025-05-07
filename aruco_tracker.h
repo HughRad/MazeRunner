@@ -5,9 +5,8 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/Point.h>  // Changed from PoseStamped to Point
 #include <geometry_msgs/Pose.h>
-#include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/Point.h>
 #include <std_msgs/Float64.h>
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
@@ -16,8 +15,6 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/point_cloud2_iterator.h>
 
 class ArucoTracker
 {
@@ -43,9 +40,9 @@ private:
   
   // Robot position subscribers
   ros::Subscriber end_effector_sub_;   // Subscriber for end effector pose
-
+  
   // Publishers
-  ros::Publisher waypoint_pub_;        // Publisher for waypoint
+  ros::Publisher waypoint_pub_;        // Changed to publish Point instead of PoseStamped
   ros::Publisher rotation_pub_;        // Publisher for rotation
   
   // ArUco dictionary and parameters
@@ -66,7 +63,7 @@ private:
   geometry_msgs::Pose end_effector_pose_;// End effector pose
   
   // Generated waypoint
-  geometry_msgs::PoseStamped waypoint_;  // Waypoint in world frame
+  geometry_msgs::Point waypoint_;      // Changed from PoseStamped to Point
   
   // Flags
   bool snapshot_taken_;
@@ -99,8 +96,8 @@ private:
       const std::vector<cv::Point2f>& corners1, 
       const std::vector<cv::Point2f>& corners2);
   
-  // Generate waypoint from target point
-  geometry_msgs::PoseStamped generateWaypoint(
+  // Generate waypoint from target point - modified to return Point instead of PoseStamped
+  geometry_msgs::Point generateWaypoint(
       const cv::Point2f& target, 
       float depth);
   
@@ -116,7 +113,7 @@ private:
       const std::vector<cv::Point2f>& corners2,
       const cv::Point2f& target,
       const cv::Point2f& center, 
-      const geometry_msgs::PoseStamped& waypoint, 
+      const geometry_msgs::Point& waypoint,  // Changed from PoseStamped to Point
       double rotation);
   
   // Save snapshot when aligned
