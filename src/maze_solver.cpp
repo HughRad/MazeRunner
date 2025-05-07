@@ -125,7 +125,8 @@ std::vector<std::pair<int, int>> maze_solver::solve() {
 }
 
 std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vector<std::pair<int, int>>& path) const {
-    if (path.empty()) {
+    if (path.empty()||path.size() == 1) {
+        std::cout << "Invalid maze (no usable waypoints could be created)" << std::endl;
         return {};
     }
     
@@ -134,33 +135,33 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
 
     waypoints.push_back(path[0]); // include the start point
     
-    if (path.size() == 1) { // If the path has only one point, return just that (after conversion to double and applying scale mods)
+    // if (path.size() == 1) { // If the path has only one point, return just that (after conversion to double and applying scale mods)
 
-        double angle_rad = rotation_ * M_PI / 180.0; 
+    //     double angle_rad = rotation_ * M_PI / 180.0; 
 
-        double x = static_cast<double>(waypoints[0].first);
-        double y = static_cast<double>(waypoints[0].second);
+    //     double x = static_cast<double>(waypoints[0].first);
+    //     double y = static_cast<double>(waypoints[0].second);
 
-        double rotated_x = (x * cos(angle_rad) - y * sin(angle_rad));
-        double rotated_y = (x * sin(angle_rad) + y * cos(angle_rad));
+    //     double rotated_x = (x * cos(angle_rad) - y * sin(angle_rad));
+    //     double rotated_y = (x * sin(angle_rad) + y * cos(angle_rad));
 
-        double scaled_x = (rotated_x * scale_ * (-1)) + world_.first;
-        double scaled_y = (rotated_y * scale_) + world_.second;
+    //     double scaled_x = (rotated_x * scale_ * (-1)) + world_.first;
+    //     double scaled_y = (rotated_y * scale_) + world_.second;
 
-        geometry_msgs::Pose pose;
-        pose.position.x = scaled_x;
-        pose.position.y = scaled_y;
-        pose.position.z = depth_; 
+    //     geometry_msgs::Pose pose;
+    //     pose.position.x = scaled_x;
+    //     pose.position.y = scaled_y;
+    //     pose.position.z = depth_; 
         
-        // Set orientation as identity quaternion (no rotation)
-        pose.orientation.x = 0.0;
-        pose.orientation.y = 0.0;
-        pose.orientation.z = 0.0;
-        pose.orientation.w = 1.0;
+    //     // Set orientation as identity quaternion (no rotation)
+    //     pose.orientation.x = 1.0;
+    //     pose.orientation.y = 0.0;
+    //     pose.orientation.z = 0.0;
+    //     pose.orientation.w = 0.0;
         
-        converted_waypoints.push_back(pose);
-        return converted_waypoints;
-    }
+    //     converted_waypoints.push_back(pose);
+    //     return converted_waypoints;
+    // }
     
     int currentDirection = 0; // Direction of movement (0 = undefined, 1 = horizontal, 2 = vertical)
     
@@ -189,15 +190,32 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
         waypoints.push_back(path.back());
     }
 
+    // === Add extended point before the start ===
+    if (path.size() >= 2) {
+        int dx = path[1].first - path[0].first;
+        int dy = path[1].second - path[0].second;
+        std::pair<int, int> extra_start = {path[0].first - dx, path[0].second - dy};
+        waypoints.insert(waypoints.begin(), extra_start);
+    }
+
+    // === Add extended point after the end ===
+    if (path.size() >= 2) {
+        int n = path.size();
+        int dx = path[n-1].first - path[n-2].first;
+        int dy = path[n-1].second - path[n-2].second;
+        std::pair<int, int> extra_end = {path[n-1].first + dx, path[n-1].second + dy};
+        waypoints.push_back(extra_end);
+    }
+
     double angle_rad = rotation_ * M_PI / 180.0; // Convert degrees to radians
 
     geometry_msgs::Pose pose;
     pose.position.z = depth_; 
 
-    pose.orientation.x = 0.0;
+    pose.orientation.x = 1.0;
     pose.orientation.y = 0.0;
     pose.orientation.z = 0.0;
-    pose.orientation.w = 1.0;
+    pose.orientation.w = 0.0;
 
     for (auto& point : waypoints) { // modify the waypoints by the real world scale and convert the int values to doubles
         double y = static_cast<double>(point.first);
@@ -217,6 +235,7 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
             
         converted_waypoints.push_back(pose);
     }
+
 
     return converted_waypoints;
 }
@@ -275,5 +294,11 @@ void maze_solver::printWaypoints(const std::vector<geometry_msgs::Pose>& waypoin
     for (size_t i = 0; i < waypoints.size(); i++) {
         const auto& pose = waypoints[i];
         std::cout << "Position " << i+1 << ": (" << pose.position.x << "," << pose.position.y << "," << pose.position.z << ")" << std::endl;
+        std::cout << "Orientation " << i+1 << ": (" << pose.orientation.x << "," << pose.orientation.y << "," << pose.orientation.z << ")" << std::endl;
+
+        double yaw = atan2(2.0 * (pose.orientation.w * pose.orientation.z + pose.orientation.x * pose.orientation.y),
+                          1.0 - 2.0 * (pose.orientation.y * pose.orientation.y + pose.orientation.z * pose.orientation.z));
+        std::cout << "  Yaw: " << yaw * 180.0 / M_PI << " degrees" << std::endl;
     }
+
 }
