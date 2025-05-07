@@ -5,7 +5,7 @@
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <geometry_msgs/Twist.h>
-#include <geometry_msgs/Point.h>  // Changed from PoseStamped to Point
+#include <geometry_msgs/Point.h>
 #include <geometry_msgs/Pose.h>
 #include <std_msgs/Float64.h>
 #include <cv_bridge/cv_bridge.h>
@@ -30,7 +30,7 @@ private:
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_sub_;
   image_transport::Publisher image_pub_;
-  image_transport::Publisher snapshot_pub_;  // Publisher for snapshot image
+  image_transport::Publisher snapshot_pub_;
   
   // Camera info subscriber
   ros::Subscriber camera_info_sub_;
@@ -39,11 +39,11 @@ private:
   ros::Subscriber depth_sub_;
   
   // Robot position subscribers
-  ros::Subscriber end_effector_sub_;   // Subscriber for end effector pose
+  ros::Subscriber end_effector_sub_;
   
   // Publishers
-  ros::Publisher waypoint_pub_;        // Changed to publish Point instead of PoseStamped
-  ros::Publisher rotation_pub_;        // Publisher for rotation
+  ros::Publisher waypoint_pub_;
+  ros::Publisher rotation_pub_;
   
   // ArUco dictionary and parameters
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
@@ -60,14 +60,15 @@ private:
   double current_rotation_;
   
   // Robot poses
-  geometry_msgs::Pose end_effector_pose_;// End effector pose
+  geometry_msgs::Pose end_effector_pose_;
   
   // Generated waypoint
-  geometry_msgs::Point waypoint_;      // Changed from PoseStamped to Point
+  geometry_msgs::Point waypoint_;
   
   // Flags
   bool snapshot_taken_;
-  bool waypoint_generated_;  // Flag to track if waypoint has been generated
+  bool waypoint_generated_;
+  bool rotation_fixed_;   // NEW: Flag to track if rotation has been fixed
   
   // Current depth at target point
   float current_depth_;
@@ -75,6 +76,11 @@ private:
   // Path for saving snapshots
   std::string snapshot_folder_;
   std::string snapshot_path_;
+  
+  // NEW: Marker tracking time variables
+  ros::Time markers_first_detected_time_;
+  bool markers_being_tracked_;
+  double marker_tracking_delay_; // Time in seconds to track markers before calculating waypoint
   
   // Image callback
   void imageCallback(const sensor_msgs::ImageConstPtr& msg);
@@ -96,7 +102,7 @@ private:
       const std::vector<cv::Point2f>& corners1, 
       const std::vector<cv::Point2f>& corners2);
   
-  // Generate waypoint from target point - modified to return Point instead of PoseStamped
+  // Generate waypoint from target point
   geometry_msgs::Point generateWaypoint(
       const cv::Point2f& target, 
       float depth);
@@ -113,7 +119,7 @@ private:
       const std::vector<cv::Point2f>& corners2,
       const cv::Point2f& target,
       const cv::Point2f& center, 
-      const geometry_msgs::Point& waypoint,  // Changed from PoseStamped to Point
+      const geometry_msgs::Point& waypoint,
       double rotation);
   
   // Save snapshot when aligned
