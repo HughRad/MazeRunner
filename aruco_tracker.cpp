@@ -10,12 +10,19 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
     nh_(nh), 
     it_(nh), 
     snapshot_taken_(false), 
-    waypoint_generated_(false),  // Initialize the waypoint flag
+    waypoint_generated_(false),
+    rotation_fixed_(false),  // NEW: Initialize rotation fixed flag
     current_depth_(0.0), 
-    current_rotation_(0.0)
+    current_rotation_(0.0),
+    markers_being_tracked_(false),
+    marker_tracking_delay_(5.0)  // NEW: Default 5 second delay
 {
   // Get parameters
   nh_.param<double>("desired_z", desired_z_, 0.3); // Default 0.3 meters
+  
+  // NEW: Get the marker tracking delay parameter (if set)
+  nh_.param<double>("marker_tracking_delay", marker_tracking_delay_, 5.0);
+  ROS_INFO("Marker tracking delay set to %.1f seconds", marker_tracking_delay_);
   
   // Setup snapshot folder
   snapshot_folder_ = ros::package::getPath("aruco_tracker") + "/snapshot";
@@ -51,7 +58,7 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
   // Publish snapshot image
   snapshot_pub_ = it_.advertise("aruco_tracker/snapshot", 1, true); // Latched publisher
   
-  // Publish waypoint (changed to Point)
+  // Publish waypoint (as Point)
   waypoint_pub_ = nh_.advertise<geometry_msgs::Point>("aruco_tracker/waypoint", 1, true);
   
   // Publish rotation value
@@ -63,12 +70,12 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
   end_effector_pose_.position.z = 0.0;
   end_effector_pose_.orientation.w = 1.0;
   
-  // Initialize waypoint (now just Point)
+  // Initialize waypoint
   waypoint_.x = 0.0;
   waypoint_.y = 0.0;
   waypoint_.z = 0.0;
   
-  ROS_INFO("ArUco Tracker initialized for tracking two markers and generating waypoints (XYZ only)");
+  ROS_INFO("ArUco Tracker initialized with %.1f second delay before generating waypoint", marker_tracking_delay_);
 }
 
 ArucoTracker::~ArucoTracker()
@@ -136,10 +143,12 @@ void ArucoTracker::imageCallback(const sensor_msgs::ImageConstPtr& msg)
     // Publish visualised image
     image_pub_.publish(cv_ptr->toImageMsg());
     
-    // Publish rotation data
-    std_msgs::Float64 rotation_msg;
-    rotation_msg.data = current_rotation_;
-    rotation_pub_.publish(rotation_msg);
+    // Publish rotation data (only if it has been fixed)
+    if (rotation_fixed_) {
+      std_msgs::Float64 rotation_msg;
+      rotation_msg.data = current_rotation_;
+      rotation_pub_.publish(rotation_msg);
+    }
   }
   catch (cv_bridge::Exception& e) {
     ROS_ERROR("cv_bridge exception in image callback: %s", e.what());
@@ -164,6 +173,13 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
   if (marker_ids.size() >= 2) {
     // Draw all detected markers
     cv::aruco::drawDetectedMarkers(cv_ptr->image, marker_corners, marker_ids);
+    
+    // NEW: Start tracking time if not already tracking
+    if (!markers_being_tracked_) {
+      markers_being_tracked_ = true;
+      markers_first_detected_time_ = ros::Time::now();
+      ROS_INFO("Markers detected - starting %.1f second tracking period", marker_tracking_delay_);
+    }
     
     // We need to identify which marker is top-left and which is bottom-right
     // For simplicity, we'll take the first two markers
@@ -197,26 +213,39 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
       // and print a warning
       top_left_corners = marker_corners[0];
       bottom_right_corners = marker_corners[1];
-      ROS_WARN("Markers are not in expected positions (top-left and bottom-right)");
+      ROS_WARN_THROTTLE(2.0, "Markers are not in expected positions (top-left and bottom-right)");
     }
     
     // Calculate the center between specific corners
     cv::Point2f target = calculateCenterBetweenMarkers(top_left_corners, bottom_right_corners);
     
-    // Generate waypoint from target point and depth only if not already generated
-    if (!waypoint_generated_) {
+    // NEW: Calculate elapsed time since markers were first detected
+    double elapsed_time = 0.0;
+    if (markers_being_tracked_) {
+      elapsed_time = (ros::Time::now() - markers_first_detected_time_).toSec();
+    }
+    
+    // Generate waypoint and fix rotation only after the tracking delay
+    // and only if not already generated
+    if (markers_being_tracked_ && elapsed_time >= marker_tracking_delay_ && !waypoint_generated_) {
+      // Generate waypoint from target point and depth
       waypoint_ = generateWaypoint(target, current_depth_);
       waypoint_pub_.publish(waypoint_);
       waypoint_generated_ = true;
-      ROS_INFO("Waypoint generated and published - will not update further");
       
-      // Also publish the current rotation when waypoint is generated
+      // Fix rotation value
       current_rotation_ = calculateRotation(top_left_corners, bottom_right_corners);
+      rotation_fixed_ = true;
+      
+      // Publish the rotation value
       std_msgs::Float64 rotation_msg;
       rotation_msg.data = current_rotation_;
       rotation_pub_.publish(rotation_msg);
-    } else {
-      // If waypoint already generated, just update rotation value for display
+      
+      ROS_INFO("Waypoint and rotation generated after %.1f seconds of tracking", elapsed_time);
+    } 
+    // If waypoint not yet generated, calculate temporary rotation for display
+    else if (!rotation_fixed_) {
       current_rotation_ = calculateRotation(top_left_corners, bottom_right_corners);
     }
     
@@ -249,6 +278,12 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
     std::string warning = "Need at least 2 ArUco markers";
     cv::putText(cv_ptr->image, warning, cv::Point(20, 30), 
                 cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
+    
+    // Reset the tracking flag if markers are lost
+    if (markers_being_tracked_ && !waypoint_generated_) {
+      markers_being_tracked_ = false;
+      ROS_INFO("Markers lost - tracking timer reset");
+    }
   }
 }
 
@@ -269,7 +304,6 @@ cv::Point2f ArucoTracker::calculateCenterBetweenMarkers(
   return center;
 }
 
-// Modified to return Point instead of PoseStamped
 geometry_msgs::Point ArucoTracker::generateWaypoint(const cv::Point2f& target, float depth)
 {
   geometry_msgs::Point waypoint;
@@ -327,7 +361,6 @@ double ArucoTracker::calculateRotation(
   return (angle1 + angle2) / 2.0;
 }
 
-// Updated to use Point instead of PoseStamped
 void ArucoTracker::drawVisualization(
     cv_bridge::CvImagePtr& cv_ptr, 
     const std::vector<cv::Point2f>& corners1,
@@ -358,7 +391,7 @@ void ArucoTracker::drawVisualization(
   cv::putText(cv_ptr->image, ss_rotation.str(), cv::Point(20, 30), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
   
-  // Display waypoint info (now only XYZ)
+  // Display waypoint info
   std::stringstream ss_waypoint;
   ss_waypoint << "Waypoint - X: " << std::fixed << std::setprecision(3) << waypoint.x
              << ", Y: " << waypoint.y
@@ -366,17 +399,38 @@ void ArucoTracker::drawVisualization(
   cv::putText(cv_ptr->image, ss_waypoint.str(), cv::Point(20, 60), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 0), 2);
   
-  // Display waypoint status
+  // NEW: Display tracking time or status
+  if (markers_being_tracked_ && !waypoint_generated_) {
+    double elapsed_time = (ros::Time::now() - markers_first_detected_time_).toSec();
+    double remaining_time = marker_tracking_delay_ - elapsed_time;
+    if (remaining_time > 0) {
+      std::stringstream ss_tracking;
+      ss_tracking << "Tracking: " << std::fixed << std::setprecision(1) << elapsed_time 
+                  << "s / " << marker_tracking_delay_ << "s";
+      cv::putText(cv_ptr->image, ss_tracking.str(), cv::Point(20, 90), 
+                  cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 165, 255), 2);
+    } else {
+      cv::putText(cv_ptr->image, "Generating waypoint...", cv::Point(20, 90), 
+                  cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 2);
+    }
+  }
+  
+  // Display waypoint and rotation status
   std::string waypoint_status = waypoint_generated_ ? "GENERATED" : "NOT GENERATED";
-  cv::putText(cv_ptr->image, "Waypoint: " + waypoint_status, cv::Point(20, 90), 
+  cv::putText(cv_ptr->image, "Waypoint: " + waypoint_status, cv::Point(20, 120), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, 
               waypoint_generated_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 165, 255), 2);
+  
+  std::string rotation_status = rotation_fixed_ ? "FIXED" : "TRACKING";
+  cv::putText(cv_ptr->image, "Rotation: " + rotation_status, cv::Point(20, 150), 
+              cv::FONT_HERSHEY_SIMPLEX, 0.7, 
+              rotation_fixed_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 165, 255), 2);
   
   // Display depth info
   std::stringstream ss_depth;
   ss_depth << "Current depth: " << std::fixed << std::setprecision(3) << current_depth_ 
           << " m (Target: " << desired_z_ << " m)";
-  cv::putText(cv_ptr->image, ss_depth.str(), cv::Point(20, 120), 
+  cv::putText(cv_ptr->image, ss_depth.str(), cv::Point(20, 180), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
   
   // Draw the rectangular area between the markers
@@ -388,7 +442,7 @@ void ArucoTracker::drawVisualization(
   
   // Draw the snapshot status
   std::string snapshot_text = snapshot_taken_ ? "Snapshot: TAKEN" : "Snapshot: WAITING FOR ALIGNMENT";
-  cv::putText(cv_ptr->image, snapshot_text, cv::Point(20, 150), 
+  cv::putText(cv_ptr->image, snapshot_text, cv::Point(20, 210), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, 
               snapshot_taken_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 165, 255), 2);
 }
