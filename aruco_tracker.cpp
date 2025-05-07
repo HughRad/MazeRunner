@@ -51,8 +51,8 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
   // Publish snapshot image
   snapshot_pub_ = it_.advertise("aruco_tracker/snapshot", 1, true); // Latched publisher
   
-  // Publish waypoint
-  waypoint_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("aruco_tracker/waypoint", 1, true);  // Use latched publisher for waypoint
+  // Publish waypoint (changed to Point)
+  waypoint_pub_ = nh_.advertise<geometry_msgs::Point>("aruco_tracker/waypoint", 1, true);
   
   // Publish rotation value
   rotation_pub_ = nh_.advertise<std_msgs::Float64>("aruco_tracker/rotation", 1);
@@ -63,11 +63,12 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
   end_effector_pose_.position.z = 0.0;
   end_effector_pose_.orientation.w = 1.0;
   
-  // Initialize waypoint
-  waypoint_.header.frame_id = "world";
-  waypoint_.pose = end_effector_pose_;
+  // Initialize waypoint (now just Point)
+  waypoint_.x = 0.0;
+  waypoint_.y = 0.0;
+  waypoint_.z = 0.0;
   
-  ROS_INFO("ArUco Tracker initialized for tracking two markers and generating waypoints");
+  ROS_INFO("ArUco Tracker initialized for tracking two markers and generating waypoints (XYZ only)");
 }
 
 ArucoTracker::~ArucoTracker()
@@ -268,11 +269,10 @@ cv::Point2f ArucoTracker::calculateCenterBetweenMarkers(
   return center;
 }
 
-geometry_msgs::PoseStamped ArucoTracker::generateWaypoint(const cv::Point2f& target, float depth)
+// Modified to return Point instead of PoseStamped
+geometry_msgs::Point ArucoTracker::generateWaypoint(const cv::Point2f& target, float depth)
 {
-  geometry_msgs::PoseStamped waypoint;
-  waypoint.header.stamp = ros::Time::now();
-  waypoint.header.frame_id = "world";
+  geometry_msgs::Point waypoint;
   
   // Get camera intrinsics
   double fx = camera_matrix_.at<double>(0, 0);
@@ -281,14 +281,11 @@ geometry_msgs::PoseStamped ArucoTracker::generateWaypoint(const cv::Point2f& tar
   double cy = camera_matrix_.at<double>(1, 2);
   
   // Calculate 3D point in camera frame
-  // Note: For a downward-facing camera, you might need to adjust these coordinates
   double x_camera = (target.x - cx) * depth / fx;
   double y_camera = (target.y - cy) * depth / fy;
   double z_camera = depth;
   
   // Create a transformation from end effector to camera frame
-  // This assumes the camera is mounted directly on the end effector
-  // and aligned with the end effector frame
   tf2::Transform end_effector_to_camera;
   end_effector_to_camera.setIdentity(); // Modify if camera has offset from end effector
   
@@ -302,34 +299,14 @@ geometry_msgs::PoseStamped ArucoTracker::generateWaypoint(const cv::Point2f& tar
   // Transform point from camera to world frame
   tf2::Vector3 point_in_world = end_effector_to_world * (end_effector_to_camera * point_in_camera);
   
-  // Set waypoint position
-  waypoint.pose.position.x = point_in_world.x();
-  waypoint.pose.position.y = point_in_world.y();
-  waypoint.pose.position.z = point_in_world.z();
-  
-  // Set waypoint orientation - use end effector's current orientation
-  waypoint.pose.orientation = end_effector_pose_.orientation;
-  
-  // Apply any additional rotation if needed (based on ArUco markers' orientation)
-  tf2::Quaternion current_orientation;
-  tf2::fromMsg(waypoint.pose.orientation, current_orientation);
-  
-  // Add rotation around z-axis based on ArUco markers
-  tf2::Quaternion rotation_adjustment;
-  rotation_adjustment.setRPY(0, 0, current_rotation_ * M_PI / 180.0);
-  
-  // Apply rotation
-  tf2::Quaternion new_orientation = current_orientation * rotation_adjustment;
-  new_orientation.normalize();
-  
-  // Set the new orientation
-  tf2::convert(new_orientation, waypoint.pose.orientation);
+  // Set waypoint position only (no orientation)
+  waypoint.x = point_in_world.x();
+  waypoint.y = point_in_world.y();
+  waypoint.z = point_in_world.z();
   
   // Log waypoint information
-  ROS_INFO("Generated waypoint at [%.3f, %.3f, %.3f] with orientation [%.3f, %.3f, %.3f, %.3f]",
-           waypoint.pose.position.x, waypoint.pose.position.y, waypoint.pose.position.z,
-           waypoint.pose.orientation.x, waypoint.pose.orientation.y, 
-           waypoint.pose.orientation.z, waypoint.pose.orientation.w);
+  ROS_INFO("Generated waypoint at [%.3f, %.3f, %.3f]",
+           waypoint.x, waypoint.y, waypoint.z);
   
   return waypoint;
 }
@@ -350,13 +327,14 @@ double ArucoTracker::calculateRotation(
   return (angle1 + angle2) / 2.0;
 }
 
+// Updated to use Point instead of PoseStamped
 void ArucoTracker::drawVisualization(
     cv_bridge::CvImagePtr& cv_ptr, 
     const std::vector<cv::Point2f>& corners1,
     const std::vector<cv::Point2f>& corners2,
     const cv::Point2f& target,
     const cv::Point2f& center, 
-    const geometry_msgs::PoseStamped& waypoint, 
+    const geometry_msgs::Point& waypoint, 
     double rotation)
 {
   // Draw line from center to target point
@@ -380,11 +358,11 @@ void ArucoTracker::drawVisualization(
   cv::putText(cv_ptr->image, ss_rotation.str(), cv::Point(20, 30), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
   
-  // Display waypoint info
+  // Display waypoint info (now only XYZ)
   std::stringstream ss_waypoint;
-  ss_waypoint << "Waypoint - X: " << std::fixed << std::setprecision(3) << waypoint.pose.position.x
-             << ", Y: " << waypoint.pose.position.y
-             << ", Z: " << waypoint.pose.position.z;
+  ss_waypoint << "Waypoint - X: " << std::fixed << std::setprecision(3) << waypoint.x
+             << ", Y: " << waypoint.y
+             << ", Z: " << waypoint.z;
   cv::putText(cv_ptr->image, ss_waypoint.str(), cv::Point(20, 60), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 0), 2);
   
