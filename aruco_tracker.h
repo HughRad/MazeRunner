@@ -68,8 +68,9 @@ private:
   // Generated waypoint
   geometry_msgs::PoseStamped waypoint_;  // Waypoint in world frame
   
-  // Snapshot has been taken flag
+  // Flags
   bool snapshot_taken_;
+  bool waypoint_generated_;  // Flag to track if waypoint has been generated
   
   // Current depth at target point
   float current_depth_;
