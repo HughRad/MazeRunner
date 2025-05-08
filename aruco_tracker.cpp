@@ -11,18 +11,25 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
     it_(nh), 
     snapshot_taken_(false), 
     waypoint_generated_(false),
-    rotation_fixed_(false),  // NEW: Initialize rotation fixed flag
+    rotation_fixed_(false),
+    is_active_(false),        // NEW: Initialize as inactive
+    is_aligned_(false),       // NEW: Initialize alignment flag
     current_depth_(0.0), 
     current_rotation_(0.0),
     markers_being_tracked_(false),
-    marker_tracking_delay_(5.0)  // NEW: Default 5 second delay
+    marker_tracking_delay_(5.0)
 {
   // Get parameters
   nh_.param<double>("desired_z", desired_z_, 0.3); // Default 0.3 meters
   
-  // NEW: Get the marker tracking delay parameter (if set)
+  // Get the marker tracking delay parameter (if set)
   nh_.param<double>("marker_tracking_delay", marker_tracking_delay_, 5.0);
+  
+  // NEW: Get snapshot delay parameter (default to same as marker_tracking_delay)
+  nh_.param<double>("snapshot_delay", snapshot_delay_, 5.0);
+  
   ROS_INFO("Marker tracking delay set to %.1f seconds", marker_tracking_delay_);
+  ROS_INFO("Snapshot delay after alignment set to %.1f seconds", snapshot_delay_);
   
   // Setup snapshot folder
   snapshot_folder_ = ros::package::getPath("aruco_tracker") + "/snapshot";
@@ -64,6 +71,9 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
   // Publish rotation value
   rotation_pub_ = nh_.advertise<std_msgs::Float64>("aruco_tracker/rotation", 1, true);
   
+  // NEW: Create service server
+  start_service_ = nh_.advertiseService("aruco_tracker/start", &ArucoTracker::startServiceCallback, this);
+  
   // Initialize end effector pose (default to identity)
   end_effector_pose_.position.x = 0.0;
   end_effector_pose_.position.y = 0.0;
@@ -75,11 +85,28 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
   waypoint_.y = 0.0;
   waypoint_.z = 0.0;
   
-  ROS_INFO("ArUco Tracker initialized with %.1f second delay before generating waypoint", marker_tracking_delay_);
+  ROS_INFO("ArUco Tracker initialized but inactive. Call 'aruco_tracker/start' service to begin tracking.");
 }
 
 ArucoTracker::~ArucoTracker()
 {
+}
+
+// NEW: Service callback implementation
+bool ArucoTracker::startServiceCallback(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res)
+{
+  if (!is_active_) {
+    is_active_ = true;
+    snapshot_taken_ = false;
+    waypoint_generated_ = false;
+    rotation_fixed_ = false;
+    is_aligned_ = false;
+    markers_being_tracked_ = false;
+    ROS_INFO("ArUco Tracker activated by service call");
+  } else {
+    ROS_INFO("ArUco Tracker is already active");
+  }
+  return true;
 }
 
 void ArucoTracker::cameraInfoCallback(const sensor_msgs::CameraInfoConstPtr& msg)
@@ -130,6 +157,11 @@ void ArucoTracker::depthCallback(const sensor_msgs::ImageConstPtr& msg)
 
 void ArucoTracker::imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
+  // Only process images if the tracker is active
+  if (!is_active_) {
+    return;
+  }
+  
   try {
     // Convert ROS image to OpenCV image
     cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
@@ -174,7 +206,7 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
     // Draw all detected markers
     cv::aruco::drawDetectedMarkers(cv_ptr->image, marker_corners, marker_ids);
     
-    // NEW: Start tracking time if not already tracking
+    // Start tracking time if not already tracking
     if (!markers_being_tracked_) {
       markers_being_tracked_ = true;
       markers_first_detected_time_ = ros::Time::now();
@@ -219,57 +251,83 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
     // Calculate the center between specific corners
     cv::Point2f target = calculateCenterBetweenMarkers(top_left_corners, bottom_right_corners);
     
-    // NEW: Calculate elapsed time since markers were first detected
+    // Calculate elapsed time since markers were first detected
     double elapsed_time = 0.0;
     if (markers_being_tracked_) {
       elapsed_time = (ros::Time::now() - markers_first_detected_time_).toSec();
     }
     
-    // Generate waypoint and fix rotation only after the tracking delay
-    // and only if not already generated
+    // Generate waypoint only after the tracking delay and only if not already generated
     if (markers_being_tracked_ && elapsed_time >= marker_tracking_delay_ && !waypoint_generated_) {
       // Generate waypoint from target point and depth
       waypoint_ = generateWaypoint(target, current_depth_);
       waypoint_pub_.publish(waypoint_);
       waypoint_generated_ = true;
       
-      // Fix rotation value
-      current_rotation_ = calculateRotation(top_left_corners, bottom_right_corners);
-      rotation_fixed_ = true;
-      
-      // Publish the rotation value
-      std_msgs::Float64 rotation_msg;
-      rotation_msg.data = current_rotation_;
-      rotation_pub_.publish(rotation_msg);
-      
-      ROS_INFO("Waypoint and rotation generated after %.1f seconds of tracking", elapsed_time);
-    } 
-    // If waypoint not yet generated, calculate temporary rotation for display
-    else if (!rotation_fixed_) {
-      current_rotation_ = calculateRotation(top_left_corners, bottom_right_corners);
+      ROS_INFO("Waypoint generated after %.1f seconds of tracking", elapsed_time);
     }
+    
+    // MODIFIED: Always calculate current rotation for display
+    // But don't fix it until snapshot is taken
+    current_rotation_ = calculateRotation(top_left_corners, bottom_right_corners);
     
     // Draw visualisation
     drawVisualization(cv_ptr, top_left_corners, bottom_right_corners, target, center, waypoint_, current_rotation_);
     
-    // Check if we should take a snapshot
-    if (!snapshot_taken_ && isAligned(target, center)) {
-      // Use the original clean image for the snapshot instead of the one with UI elements
-      if (saveSnapshot(original_frame)) {
-        snapshot_taken_ = true;
-        ROS_INFO("Snapshot saved successfully!");
+    // MODIFIED: Check for alignment and start delay if newly aligned
+    bool is_currently_aligned = isAligned(target, center);
+    
+    // If we just became aligned, record the time
+    if (is_currently_aligned && !is_aligned_) {
+      is_aligned_ = true;
+      first_aligned_time_ = ros::Time::now();
+      ROS_INFO("Alignment detected - starting %.1f second snapshot delay", snapshot_delay_);
+    }
+    // If we lost alignment, reset the flag
+    else if (!is_currently_aligned && is_aligned_) {
+      is_aligned_ = false;
+      ROS_INFO("Alignment lost - snapshot delay reset");
+    }
+    
+    // Check if we've been aligned long enough to take a snapshot
+    if (is_aligned_ && !snapshot_taken_) {
+      double alignment_time = (ros::Time::now() - first_aligned_time_).toSec();
+      
+      // Add alignment time to visualization
+      std::stringstream ss_alignment;
+      ss_alignment << "Aligned: " << std::fixed << std::setprecision(1) 
+                   << alignment_time << "s / " << snapshot_delay_ << "s";
+      cv::putText(cv_ptr->image, ss_alignment.str(), cv::Point(20, 240), 
+                  cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 255), 2);
+      
+      // If we've been aligned for the delay period, take the snapshot
+      if (alignment_time >= snapshot_delay_) {
+        // MODIFIED: Calculate and fix rotation at snapshot time
+        current_rotation_ = calculateRotation(top_left_corners, bottom_right_corners);
+        rotation_fixed_ = true;
         
-        // Publish the snapshot
-        try {
-          cv::Mat snapshot = cv::imread(snapshot_path_);
-          if (!snapshot.empty()) {
-            sensor_msgs::ImagePtr snapshot_msg = 
-                cv_bridge::CvImage(std_msgs::Header(), "bgr8", snapshot).toImageMsg();
-            snapshot_pub_.publish(snapshot_msg);
-            ROS_INFO("Snapshot published to topic");
+        // Publish the rotation value
+        std_msgs::Float64 rotation_msg;
+        rotation_msg.data = current_rotation_;
+        rotation_pub_.publish(rotation_msg);
+        
+        // Use the original clean image for the snapshot
+        if (saveSnapshot(original_frame)) {
+          snapshot_taken_ = true;
+          ROS_INFO("Snapshot taken after %.1f seconds of alignment!", alignment_time);
+          
+          // Publish the snapshot
+          try {
+            cv::Mat snapshot = cv::imread(snapshot_path_);
+            if (!snapshot.empty()) {
+              sensor_msgs::ImagePtr snapshot_msg = 
+                  cv_bridge::CvImage(std_msgs::Header(), "bgr8", snapshot).toImageMsg();
+              snapshot_pub_.publish(snapshot_msg);
+              ROS_INFO("Snapshot published to topic");
+            }
+          } catch (const cv::Exception& e) {
+            ROS_ERROR("Exception publishing snapshot: %s", e.what());
           }
-        } catch (const cv::Exception& e) {
-          ROS_ERROR("Exception publishing snapshot: %s", e.what());
         }
       }
     }
@@ -284,7 +342,19 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
       markers_being_tracked_ = false;
       ROS_INFO("Markers lost - tracking timer reset");
     }
+    
+    // Reset the alignment flag if markers are lost
+    if (is_aligned_) {
+      is_aligned_ = false;
+      ROS_INFO("Markers lost - alignment timer reset");
+    }
   }
+  
+  // Display service status
+  std::string service_status = is_active_ ? "ACTIVE" : "INACTIVE";
+  cv::putText(cv_ptr->image, "Service: " + service_status, cv::Point(frame.cols - 200, 30), 
+              cv::FONT_HERSHEY_SIMPLEX, 0.7, 
+              is_active_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 2);
 }
 
 cv::Point2f ArucoTracker::calculateCenterBetweenMarkers(
@@ -399,7 +469,7 @@ void ArucoTracker::drawVisualization(
   cv::putText(cv_ptr->image, ss_waypoint.str(), cv::Point(20, 60), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 0), 2);
   
-  // NEW: Display tracking time or status
+  // Display tracking time or status
   if (markers_being_tracked_ && !waypoint_generated_) {
     double elapsed_time = (ros::Time::now() - markers_first_detected_time_).toSec();
     double remaining_time = marker_tracking_delay_ - elapsed_time;
@@ -441,10 +511,16 @@ void ArucoTracker::drawVisualization(
   cv::rectangle(cv_ptr->image, bottom_right_corner1, top_left_corner2, cv::Scalar(255, 165, 0), 2);
   
   // Draw the snapshot status
-  std::string snapshot_text = snapshot_taken_ ? "Snapshot: TAKEN" : "Snapshot: WAITING FOR ALIGNMENT";
+  std::string snapshot_text = snapshot_taken_ ? "Snapshot: TAKEN" : "Snapshot: WAITING";
   cv::putText(cv_ptr->image, snapshot_text, cv::Point(20, 210), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, 
               snapshot_taken_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 165, 255), 2);
+  
+  // NEW: Display alignment status
+  std::string alignment_text = is_aligned_ ? "ALIGNED" : "NOT ALIGNED";
+  cv::putText(cv_ptr->image, "Alignment: " + alignment_text, cv::Point(20, 240), 
+              cv::FONT_HERSHEY_SIMPLEX, 0.7, 
+              is_aligned_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 165, 255), 2);
 }
 
 bool ArucoTracker::isAligned(const cv::Point2f& target, const cv::Point2f& center)
