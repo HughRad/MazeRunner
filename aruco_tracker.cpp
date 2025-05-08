@@ -17,7 +17,8 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
     current_depth_(0.0), 
     current_rotation_(0.0),
     markers_being_tracked_(false),
-    marker_tracking_delay_(5.0)
+    marker_tracking_delay_(5.0),
+    desired_z_(0.3)
 {
   // Get parameters
   nh_.param<double>("desired_z", desired_z_, 0.3); // Default 0.3 meters
@@ -406,7 +407,7 @@ geometry_msgs::Point ArucoTracker::generateWaypoint(const cv::Point2f& target, f
   // Set waypoint position only (no orientation)
   waypoint.x = point_in_world.x();
   waypoint.y = point_in_world.y();
-  waypoint.z = point_in_world.z();
+  waypoint.z = desired_z_;
   
   // Log waypoint information
   ROS_INFO("Generated waypoint at [%.3f, %.3f, %.3f]",
