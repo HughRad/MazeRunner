@@ -1,6 +1,5 @@
 #ifndef ARUCO_TRACKER_H
 #define ARUCO_TRACKER_H
-
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/CameraInfo.h>
@@ -8,6 +7,7 @@
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Pose.h>
 #include <std_msgs/Float64.h>
+#include <std_srvs/Empty.h>  // Added for service
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 #include <opencv2/opencv.hpp>
@@ -15,13 +15,11 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-
 class ArucoTracker
 {
 public:
   ArucoTracker(ros::NodeHandle& nh);
   ~ArucoTracker();
-
 private:
   // ROS node handle
   ros::NodeHandle nh_;
@@ -44,6 +42,9 @@ private:
   // Publishers
   ros::Publisher waypoint_pub_;
   ros::Publisher rotation_pub_;
+  
+  // Service server - NEW
+  ros::ServiceServer start_service_;
   
   // ArUco dictionary and parameters
   cv::Ptr<cv::aruco::Dictionary> dictionary_;
@@ -68,7 +69,9 @@ private:
   // Flags
   bool snapshot_taken_;
   bool waypoint_generated_;
-  bool rotation_fixed_;   // NEW: Flag to track if rotation has been fixed
+  bool rotation_fixed_;
+  bool is_active_;        // NEW: Flag for service activation
+  bool is_aligned_;       // NEW: Flag to track alignment status
   
   // Current depth at target point
   float current_depth_;
@@ -77,10 +80,14 @@ private:
   std::string snapshot_folder_;
   std::string snapshot_path_;
   
-  // NEW: Marker tracking time variables
+  // Marker tracking time variables
   ros::Time markers_first_detected_time_;
   bool markers_being_tracked_;
   double marker_tracking_delay_; // Time in seconds to track markers before calculating waypoint
+  
+  // NEW: Alignment time variables
+  ros::Time first_aligned_time_;
+  double snapshot_delay_;  // Time in seconds to wait after alignment before taking snapshot
   
   // Image callback
   void imageCallback(const sensor_msgs::ImageConstPtr& msg);
@@ -93,6 +100,9 @@ private:
   
   // Robot pose callbacks
   void endEffectorCallback(const geometry_msgs::PoseStamped::ConstPtr& msg);
+  
+  // NEW: Service callback
+  bool startServiceCallback(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
   
   // Process frame and detect ArUco markers
   void processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_ptr, const cv::Mat& original_frame);
@@ -128,5 +138,4 @@ private:
   // Check if camera is aligned with target
   bool isAligned(const cv::Point2f& target, const cv::Point2f& center);
 };
-
 #endif // ARUCO_TRACKER_H
