@@ -42,6 +42,7 @@ private:
   // Publishers
   ros::Publisher waypoint_pub_;
   ros::Publisher rotation_pub_;
+  ros::Publisher corner_waypoint_pub_;  // NEW: Publisher for corner waypoint
   
   // Service server - NEW
   ros::ServiceServer start_service_;
@@ -65,6 +66,7 @@ private:
   
   // Generated waypoint
   geometry_msgs::Point waypoint_;
+  geometry_msgs::Point corner_waypoint_;  // NEW: Corner waypoint
   
   // Flags
   bool snapshot_taken_;
@@ -72,6 +74,7 @@ private:
   bool rotation_fixed_;
   bool is_active_;        // NEW: Flag for service activation
   bool is_aligned_;       // NEW: Flag to track alignment status
+  bool corner_waypoint_generated_;  // NEW: Flag for corner waypoint
   
   // Current depth at target point
   float current_depth_;
