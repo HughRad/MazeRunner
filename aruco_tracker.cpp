@@ -212,8 +212,25 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
   cv::line(cv_ptr->image, cv::Point(center.x - 10, center.y), cv::Point(center.x + 10, center.y), cv::Scalar(0, 0, 255), 2);
   cv::line(cv_ptr->image, cv::Point(center.x, center.y - 10), cv::Point(center.x, center.y + 10), cv::Scalar(0, 0, 255), 2);
   
-  // If at least two markers are detected
-  if (marker_ids.size() >= 2) {
+  // MODIFIED: Check if both required markers (ID 0 and ID 3) are detected
+  bool marker0_found = false;
+  bool marker3_found = false;
+  int marker0_idx = -1;
+  int marker3_idx = -1;
+  
+  // Find the indices of markers with ID 0 and ID 3
+  for (size_t i = 0; i < marker_ids.size(); i++) {
+    if (marker_ids[i] == 0) {
+      marker0_found = true;
+      marker0_idx = i;
+    } else if (marker_ids[i] == 3) {
+      marker3_found = true;
+      marker3_idx = i;
+    }
+  }
+  
+  // If both required markers are detected
+  if (marker0_found && marker3_found) {
     // Draw all detected markers
     cv::aruco::drawDetectedMarkers(cv_ptr->image, marker_corners, marker_ids);
     
@@ -221,43 +238,12 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
     if (!markers_being_tracked_) {
       markers_being_tracked_ = true;
       markers_first_detected_time_ = ros::Time::now();
-      ROS_INFO("Markers detected - starting %.1f second tracking period", marker_tracking_delay_);
+      ROS_INFO("Required markers (ID 0 and ID 3) detected - starting %.1f second tracking period", marker_tracking_delay_);
     }
     
-    // We need to identify which marker is top-left and which is bottom-right
-    // For simplicity, we'll take the first two markers
-    // Determine which is top-left and which is bottom-right based on center positions
-    cv::Point2f center1(0, 0), center2(0, 0);
-    
-    for (const auto& corner : marker_corners[0]) {
-      center1 += corner;
-    }
-    center1 *= 0.25f;
-    
-    for (const auto& corner : marker_corners[1]) {
-      center2 += corner;
-    }
-    center2 *= 0.25f;
-    
-    // Determine which is top-left and which is bottom-right
-    std::vector<cv::Point2f> top_left_corners, bottom_right_corners;
-    
-    if (center1.x <= center2.x && center1.y <= center2.y) {
-      // Marker 1 is top-left, Marker 2 is bottom-right
-      top_left_corners = marker_corners[0];
-      bottom_right_corners = marker_corners[1];
-    } else if (center2.x <= center1.x && center2.y <= center1.y) {
-      // Marker 2 is top-left, Marker 1 is bottom-right
-      top_left_corners = marker_corners[1];
-      bottom_right_corners = marker_corners[0];
-    } else {
-      // If the markers are diagonal, we need a better criterion
-      // For now, just use the first marker as top-left and second as bottom-right
-      // and print a warning
-      top_left_corners = marker_corners[0];
-      bottom_right_corners = marker_corners[1];
-      ROS_WARN_THROTTLE(2.0, "Markers are not in expected positions (top-left and bottom-right)");
-    }
+    // Get corners for marker ID 0 (top-left) and marker ID 3 (bottom-right)
+    std::vector<cv::Point2f> top_left_corners = marker_corners[marker0_idx];
+    std::vector<cv::Point2f> bottom_right_corners = marker_corners[marker3_idx];
     
     // Calculate the center between specific corners
     cv::Point2f target = calculateCenterBetweenMarkers(top_left_corners, bottom_right_corners);
@@ -275,28 +261,17 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
       waypoint_pub_.publish(waypoint_);
       waypoint_generated_ = true;
       
-      // NEW: Get the bottom right corner of the top left marker (index 2 in the corners array)
-      // ArUco corners are ordered: top-left, top-right, bottom-right, bottom-left
-      cv::Point2f bottom_right_corner = top_left_corners[2];
-      
-      // Generate corner waypoint
-      corner_waypoint_ = generateWaypoint(bottom_right_corner, current_depth_);
-      corner_waypoint_pub_.publish(corner_waypoint_);
-      corner_waypoint_generated_ = true;
-      
       ROS_INFO("Waypoint generated after %.1f seconds of tracking", elapsed_time);
-      ROS_INFO("Corner waypoint generated for bottom-right corner of top-left marker: [%.3f, %.3f, %.3f]",
-               corner_waypoint_.x, corner_waypoint_.y, corner_waypoint_.z);
     }
     
-    // MODIFIED: Always calculate current rotation for display
+    // Always calculate current rotation for display
     // But don't fix it until snapshot is taken
     current_rotation_ = calculateRotation(top_left_corners, bottom_right_corners);
     
     // Draw visualisation
     drawVisualization(cv_ptr, top_left_corners, bottom_right_corners, target, center, waypoint_, current_rotation_);
     
-    // MODIFIED: Check for alignment and start delay if newly aligned
+    // Check for alignment and start delay if newly aligned
     bool is_currently_aligned = isAligned(target, center);
     
     // If we just became aligned, record the time
@@ -324,7 +299,7 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
       
       // If we've been aligned for the delay period, take the snapshot
       if (alignment_time >= snapshot_delay_) {
-        // MODIFIED: Calculate and fix rotation at snapshot time
+        // Calculate and fix rotation at snapshot time
         current_rotation_ = calculateRotation(top_left_corners, bottom_right_corners);
         rotation_fixed_ = true;
         
@@ -332,6 +307,21 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
         std_msgs::Float64 rotation_msg;
         rotation_msg.data = current_rotation_;
         rotation_pub_.publish(rotation_msg);
+        
+        // MOVED: Generate corner waypoint when snapshot is taken
+        if (!corner_waypoint_generated_) {
+          // Get the bottom right corner of the marker with ID 0 (index 2 in the corners array)
+          // ArUco corners are ordered: top-left, top-right, bottom-right, bottom-left
+          cv::Point2f bottom_right_corner = top_left_corners[2];
+          
+          // Generate corner waypoint
+          corner_waypoint_ = generateWaypoint(bottom_right_corner, current_depth_);
+          corner_waypoint_pub_.publish(corner_waypoint_);
+          corner_waypoint_generated_ = true;
+          
+          ROS_INFO("Corner waypoint generated for bottom-right corner of marker ID 0: [%.3f, %.3f, %.3f]",
+                   corner_waypoint_.x, corner_waypoint_.y, corner_waypoint_.z);
+        }
         
         // Use the original clean image for the snapshot
         if (saveSnapshot(original_frame)) {
@@ -354,21 +344,29 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
       }
     }
   } else {
-    // Display warning if not enough markers are detected
-    std::string warning = "Need at least 2 ArUco markers";
+    // MODIFIED: Display warning if the required markers are not detected
+    std::string warning;
+    if (!marker0_found && !marker3_found) {
+      warning = "Need markers with ID 0 and ID 3";
+    } else if (!marker0_found) {
+      warning = "Need marker with ID 0";
+    } else {
+      warning = "Need marker with ID 3";
+    }
+    
     cv::putText(cv_ptr->image, warning, cv::Point(20, 30), 
                 cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 0, 255), 2);
     
     // Reset the tracking flag if markers are lost
     if (markers_being_tracked_ && !waypoint_generated_) {
       markers_being_tracked_ = false;
-      ROS_INFO("Markers lost - tracking timer reset");
+      ROS_INFO("Required markers lost - tracking timer reset");
     }
     
     // Reset the alignment flag if markers are lost
     if (is_aligned_) {
       is_aligned_ = false;
-      ROS_INFO("Markers lost - alignment timer reset");
+      ROS_INFO("Required markers lost - alignment timer reset");
     }
   }
   
@@ -378,7 +376,19 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
               cv::FONT_HERSHEY_SIMPLEX, 0.7, 
               is_active_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 2);
   
-  // NEW: Display corner waypoint status
+  // Display marker detection status
+  std::string marker0_status = marker0_found ? "FOUND" : "NOT FOUND";
+  std::string marker3_status = marker3_found ? "FOUND" : "NOT FOUND";
+  
+  cv::putText(cv_ptr->image, "Marker ID 0: " + marker0_status, cv::Point(20, 330), 
+              cv::FONT_HERSHEY_SIMPLEX, 0.7, 
+              marker0_found ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 2);
+  
+  cv::putText(cv_ptr->image, "Marker ID 3: " + marker3_status, cv::Point(20, 360), 
+              cv::FONT_HERSHEY_SIMPLEX, 0.7, 
+              marker3_found ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 2);
+  
+  // Display corner waypoint status
   std::string corner_waypoint_status = corner_waypoint_generated_ ? "GENERATED" : "NOT GENERATED";
   cv::putText(cv_ptr->image, "Corner Waypoint: " + corner_waypoint_status, cv::Point(20, 270), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, 
@@ -474,7 +484,21 @@ void ArucoTracker::drawVisualization(
   // Draw the target point (center between specific corners)
   cv::circle(cv_ptr->image, target, 5, cv::Scalar(255, 0, 255), -1);
   
-  // NEW: Highlight the bottom-right corner of the top-left marker
+  // MODIFIED: Label the markers with their IDs
+  cv::Point2f center1(0, 0), center2(0, 0);
+  for (int i = 0; i < 4; i++) {
+    center1 += corners1[i];
+    center2 += corners2[i];
+  }
+  center1 *= 0.25f;
+  center2 *= 0.25f;
+  
+  cv::putText(cv_ptr->image, "ID 0", cv::Point(center1.x - 10, center1.y - 10),
+              cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
+  cv::putText(cv_ptr->image, "ID 3", cv::Point(center2.x - 10, center2.y - 10),
+              cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2);
+  
+  // Highlight the bottom-right corner of marker ID 0
   cv::Point2f bottom_right_corner = corners1[2]; // Corner index 2 is bottom-right
   cv::circle(cv_ptr->image, bottom_right_corner, 5, cv::Scalar(0, 0, 255), -1);
   cv::putText(cv_ptr->image, "Corner", cv::Point(bottom_right_corner.x + 5, bottom_right_corner.y + 5),
@@ -538,8 +562,8 @@ void ArucoTracker::drawVisualization(
               cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
   
   // Draw the rectangular area between the markers
-  cv::Point2f bottom_right_corner1 = corners1[2]; // Bottom-right of top-left marker
-  cv::Point2f top_left_corner2 = corners2[0];     // Top-left of bottom-right marker
+  cv::Point2f bottom_right_corner1 = corners1[2]; // Bottom-right of marker ID 0
+  cv::Point2f top_left_corner2 = corners2[0];     // Top-left of marker ID 3
   
   // Draw rectangle defined by these two corners
   cv::rectangle(cv_ptr->image, bottom_right_corner1, top_left_corner2, cv::Scalar(255, 165, 0), 2);
@@ -550,13 +574,13 @@ void ArucoTracker::drawVisualization(
               cv::FONT_HERSHEY_SIMPLEX, 0.7, 
               snapshot_taken_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 165, 255), 2);
   
-  // NEW: Display alignment status
+  // Display alignment status
   std::string alignment_text = is_aligned_ ? "ALIGNED" : "NOT ALIGNED";
   cv::putText(cv_ptr->image, "Alignment: " + alignment_text, cv::Point(20, 240), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, 
               is_aligned_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 165, 255), 2);
   
-  // NEW: Display corner waypoint info if generated
+  // Display corner waypoint info if generated
   if (corner_waypoint_generated_) {
     std::stringstream ss_corner_waypoint;
     ss_corner_waypoint << "Corner Waypoint - X: " << std::fixed << std::setprecision(3) << corner_waypoint_.x
