@@ -14,6 +14,7 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
     rotation_fixed_(false),
     is_active_(false),        // NEW: Initialize as inactive
     is_aligned_(false),       // NEW: Initialize alignment flag
+    corner_waypoint_generated_(false),  // NEW: Initialize corner waypoint flag
     current_depth_(0.0), 
     current_rotation_(0.0),
     markers_being_tracked_(false),
@@ -72,6 +73,9 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
   // Publish rotation value
   rotation_pub_ = nh_.advertise<std_msgs::Float64>("aruco_tracker/rotation", 1, true);
   
+  // NEW: Publish corner waypoint (as Point)
+  corner_waypoint_pub_ = nh_.advertise<geometry_msgs::Point>("aruco_tracker/cornerwaypoint", 1, true);
+  
   // NEW: Create service server
   start_service_ = nh_.advertiseService("aruco_tracker/start", &ArucoTracker::startServiceCallback, this);
   
@@ -85,6 +89,11 @@ ArucoTracker::ArucoTracker(ros::NodeHandle& nh) :
   waypoint_.x = 0.0;
   waypoint_.y = 0.0;
   waypoint_.z = 0.0;
+  
+  // NEW: Initialize corner waypoint
+  corner_waypoint_.x = 0.0;
+  corner_waypoint_.y = 0.0;
+  corner_waypoint_.z = 0.0;
   
   ROS_INFO("ArUco Tracker initialized but inactive. Call 'aruco_tracker/start' service to begin tracking.");
 }
@@ -103,6 +112,7 @@ bool ArucoTracker::startServiceCallback(std_srvs::Empty::Request& req, std_srvs:
     rotation_fixed_ = false;
     is_aligned_ = false;
     markers_being_tracked_ = false;
+    corner_waypoint_generated_ = false;  // NEW: Reset corner waypoint flag
     ROS_INFO("ArUco Tracker activated by service call");
   } else {
     ROS_INFO("ArUco Tracker is already active");
@@ -265,7 +275,18 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
       waypoint_pub_.publish(waypoint_);
       waypoint_generated_ = true;
       
+      // NEW: Get the bottom right corner of the top left marker (index 2 in the corners array)
+      // ArUco corners are ordered: top-left, top-right, bottom-right, bottom-left
+      cv::Point2f bottom_right_corner = top_left_corners[2];
+      
+      // Generate corner waypoint
+      corner_waypoint_ = generateWaypoint(bottom_right_corner, current_depth_);
+      corner_waypoint_pub_.publish(corner_waypoint_);
+      corner_waypoint_generated_ = true;
+      
       ROS_INFO("Waypoint generated after %.1f seconds of tracking", elapsed_time);
+      ROS_INFO("Corner waypoint generated for bottom-right corner of top-left marker: [%.3f, %.3f, %.3f]",
+               corner_waypoint_.x, corner_waypoint_.y, corner_waypoint_.z);
     }
     
     // MODIFIED: Always calculate current rotation for display
@@ -356,6 +377,12 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
   cv::putText(cv_ptr->image, "Service: " + service_status, cv::Point(frame.cols - 200, 30), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, 
               is_active_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 0, 255), 2);
+  
+  // NEW: Display corner waypoint status
+  std::string corner_waypoint_status = corner_waypoint_generated_ ? "GENERATED" : "NOT GENERATED";
+  cv::putText(cv_ptr->image, "Corner Waypoint: " + corner_waypoint_status, cv::Point(20, 270), 
+              cv::FONT_HERSHEY_SIMPLEX, 0.7, 
+              corner_waypoint_generated_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 165, 255), 2);
 }
 
 cv::Point2f ArucoTracker::calculateCenterBetweenMarkers(
@@ -447,6 +474,12 @@ void ArucoTracker::drawVisualization(
   // Draw the target point (center between specific corners)
   cv::circle(cv_ptr->image, target, 5, cv::Scalar(255, 0, 255), -1);
   
+  // NEW: Highlight the bottom-right corner of the top-left marker
+  cv::Point2f bottom_right_corner = corners1[2]; // Corner index 2 is bottom-right
+  cv::circle(cv_ptr->image, bottom_right_corner, 5, cv::Scalar(0, 0, 255), -1);
+  cv::putText(cv_ptr->image, "Corner", cv::Point(bottom_right_corner.x + 5, bottom_right_corner.y + 5),
+              cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1);
+  
   // Calculate pixel distance
   double pixel_distance = cv::norm(target - center);
   
@@ -522,6 +555,16 @@ void ArucoTracker::drawVisualization(
   cv::putText(cv_ptr->image, "Alignment: " + alignment_text, cv::Point(20, 240), 
               cv::FONT_HERSHEY_SIMPLEX, 0.7, 
               is_aligned_ ? cv::Scalar(0, 255, 0) : cv::Scalar(0, 165, 255), 2);
+  
+  // NEW: Display corner waypoint info if generated
+  if (corner_waypoint_generated_) {
+    std::stringstream ss_corner_waypoint;
+    ss_corner_waypoint << "Corner Waypoint - X: " << std::fixed << std::setprecision(3) << corner_waypoint_.x
+                      << ", Y: " << corner_waypoint_.y
+                      << ", Z: " << corner_waypoint_.z;
+    cv::putText(cv_ptr->image, ss_corner_waypoint.str(), cv::Point(20, 300), 
+                cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 0, 255), 2);
+  }
 }
 
 bool ArucoTracker::isAligned(const cv::Point2f& target, const cv::Point2f& center)
