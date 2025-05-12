@@ -332,10 +332,19 @@ void ArucoTracker::processFrame(const cv::Mat& frame, cv_bridge::CvImagePtr& cv_
           try {
             cv::Mat snapshot = cv::imread(snapshot_path_);
             if (!snapshot.empty()) {
+              // Rotate the snapshot in the opposite direction of the ArUco markers
+              // Negative sign to make the image right way up
+              cv::Mat rotated_snapshot = rotateImageWithoutCropping(snapshot, -current_rotation_);
+              
+              // Save the rotated image (optional)
+              std::string rotated_path = snapshot_folder_ + "/rotated_snapshot.jpg";
+              cv::imwrite(rotated_path, rotated_snapshot);
+              
+              // Publish the rotated snapshot
               sensor_msgs::ImagePtr snapshot_msg = 
-                  cv_bridge::CvImage(std_msgs::Header(), "bgr8", snapshot).toImageMsg();
+                  cv_bridge::CvImage(std_msgs::Header(), "bgr8", rotated_snapshot).toImageMsg();
               snapshot_pub_.publish(snapshot_msg);
-              ROS_INFO("Snapshot published to topic");
+              ROS_INFO("Rotated snapshot published to topic (rotation: %.2f degrees)", -current_rotation_);
             }
           } catch (const cv::Exception& e) {
             ROS_ERROR("Exception publishing snapshot: %s", e.what());
@@ -624,6 +633,31 @@ bool ArucoTracker::saveSnapshot(const cv::Mat& image)
     ROS_ERROR("Exception saving snapshot: %s", e.what());
     return false;
   }
+}
+
+cv::Mat ArucoTracker::rotateImageWithoutCropping(const cv::Mat& image, double angle)
+{
+  // Get image dimensions
+  int width = image.cols;
+  int height = image.rows;
+  
+  // Calculate the size needed for the rotated image to avoid cropping
+  cv::Point2f center(width/2.0f, height/2.0f);
+  cv::Mat rotation_matrix = cv::getRotationMatrix2D(center, angle, 1.0);
+  
+  // Determine new dimensions to avoid cropping
+  // Calculate bounding rect for the rotated image
+  cv::Rect2f bbox = cv::RotatedRect(cv::Point2f(), image.size(), angle).boundingRect2f();
+  
+  // Adjust the rotation matrix to move the image to the center of the new canvas
+  rotation_matrix.at<double>(0,2) += bbox.width/2.0 - image.cols/2.0;
+  rotation_matrix.at<double>(1,2) += bbox.height/2.0 - image.rows/2.0;
+  
+  // Create output image with proper dimensions to avoid cropping
+  cv::Mat rotated_image;
+  cv::warpAffine(image, rotated_image, rotation_matrix, bbox.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
+  
+  return rotated_image;
 }
 
 int main(int argc, char** argv)
