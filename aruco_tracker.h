@@ -140,5 +140,8 @@ private:
   
   // Check if camera is aligned with target
   bool isAligned(const cv::Point2f& target, const cv::Point2f& center);
+  
+  // Rotate image without cropping
+  cv::Mat rotateImageWithoutCropping(const cv::Mat& image, double angle);
 };
 #endif // ARUCO_TRACKER_H
