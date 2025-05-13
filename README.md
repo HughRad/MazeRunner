@@ -1,5 +1,6 @@
-# MazeRunner
-Robotics Studio 2 Project
+### 41069 Robotics Studio 2 - Autumn 2025
+# MazeRunner: A Maze Solving Robot
+The MazeRunner project is a robotics system designed to autonomously navigate a user defined maze using localisation, image processing, path planning, and motion control. The system captures an image of the maze, locates it in a global frame, processes it to extract relevant features, generates an optimal path, and executes precise movements using a robotic arm (UR3) mounted on a table.
 
 ## Team Members
 Cristian Corso - 13549237
