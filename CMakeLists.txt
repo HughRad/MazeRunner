@@ -11,15 +11,21 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_core
   moveit_ros_planning
   moveit_ros_planning_interface
+  moveit_servo
   ur3_moveit_config
+  cv_bridge
+  sensor_msgs
+  std_msgs
+  std_srvs
 )
+
 
 find_package(OpenCV REQUIRED)
 ###################################
 ## catkin specific configuration ##
 ###################################
 catkin_package(
-  CATKIN_DEPENDS roscpp geometry_msgs moveit_core moveit_ros_planning moveit_ros_planning_interface moveit_commander
+  CATKIN_DEPENDS roscpp geometry_msgs moveit_core moveit_ros_planning moveit_ros_planning_interface moveit_commander moveit_servo
 )
 
 ###########
@@ -36,10 +42,11 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
 )
 
+
 ## Declare a C++ executable for each node
 add_executable(maze_runner src/robot_control.cpp)
-add_executable(waypoint_test src/waypoint_test.cpp)
 add_executable(robot_sim src/robot_control.cpp)
+
 
 ## Add dependencies to the executables
 add_dependencies(robot_sim 
@@ -50,15 +57,8 @@ add_dependencies(robot_sim
   ${moveit_commander_EXPORTED_TARGETS}
 )
 
-add_dependencies(maze_runner 
-  ${${PROJECT_NAME}_EXPORTED_TARGETS} 
-  ${catkin_EXPORTED_TARGETS}
-  ${moveit_core_EXPORTED_TARGETS}
-  ${moveit_ros_planning_interface_EXPORTED_TARGETS}
-  ${moveit_commander_EXPORTED_TARGETS}
-)
 
-add_dependencies(waypoint_test 
+add_dependencies(maze_runner 
   ${${PROJECT_NAME}_EXPORTED_TARGETS} 
   ${catkin_EXPORTED_TARGETS}
   ${moveit_core_EXPORTED_TARGETS}
@@ -80,6 +80,7 @@ target_link_libraries(robot_sim
   ${OpenCV_LIBS}
 )
 
+
 target_link_libraries(maze_runner
   maze_solver_lib
   image_processing
@@ -89,19 +90,13 @@ target_link_libraries(maze_runner
   ${OpenCV_LIBS}
 )
 
-target_link_libraries(waypoint_test
-  maze_solver_lib
-  ${catkin_LIBRARIES}
-  ${moveit_core_LIBRARIES}
-  ${moveit_ros_planning_interface_LIBRARIES}
-)
 
 #############
 ## Install ##
 #############
 
 ## Mark executables for installation
-install(TARGETS maze_runner waypoint_test robot_sim
+install(TARGETS maze_runner robot_sim
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
