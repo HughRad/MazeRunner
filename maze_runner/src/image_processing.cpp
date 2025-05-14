@@ -1,8 +1,33 @@
+/**
+ * @file image_processing.cpp
+ * @brief Implementation of image processing operations for maze detection
+ * 
+ * This file contains the implementation of the ImageProcessor class that
+ * processes images of mazes captured by a camera. It detects maze walls,
+ * pathways, start and end points using computer vision techniques with OpenCV.
+ * 
+ * @author Original author
+ * @date May 2025
+ */
+
 #include "image_processing.h"
 #include <iostream>
 
+/**
+ * @brief Default constructor for the ImageProcessor class
+ */
 ImageProcessor::ImageProcessor() {}
 
+/**
+ * @brief Processes an image to extract maze structure
+ * 
+ * Takes an image of a maze and processes it to extract the maze structure
+ * as an array of characters representing walls, paths, start and end points.
+ * 
+ * @param image The input image containing the maze
+ * @param debugInfo Optional pointer to store debug information and images
+ * @return std::vector<std::string> 2D array representation of the maze
+ */
 std::vector<std::string> ImageProcessor::processMaze(const cv::Mat& image, DebugInfo* debugInfo) {
 
     if (image.empty()) {
@@ -41,6 +66,15 @@ std::vector<std::string> ImageProcessor::processMaze(const cv::Mat& image, Debug
     return generateMazeArray(walls, binaryImage);
 }
 
+/**
+ * @brief Crops the image to contain only the maze using ArUco markers
+ * 
+ * Detects ArUco markers in the image and uses them to define the bounds
+ * of the maze, then crops the image to that region.
+ * 
+ * @param image The input image to crop
+ * @return cv::Mat The cropped image containing only the maze
+ */
 cv::Mat ImageProcessor::cropToMazeBoundaries(const cv::Mat& image) {
     // Detect ArUco markers
     cv::Ptr<cv::aruco::Dictionary> dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);
@@ -96,6 +130,15 @@ cv::Mat ImageProcessor::cropToMazeBoundaries(const cv::Mat& image) {
     return image(mazeRegion);
 }
 
+/**
+ * @brief Preprocesses the cropped image for wall detection
+ * 
+ * Converts the image to grayscale, applies blur and then uses adaptive
+ * thresholding to create a binary image where walls are white and paths are black.
+ * 
+ * @param croppedImage The cropped image containing only the maze
+ * @return cv::Mat The binary image ready for wall detection
+ */
 cv::Mat ImageProcessor::preprocessImage(const cv::Mat& croppedImage) {
     cv::Mat gray, blurred, binary;
 
@@ -110,6 +153,15 @@ cv::Mat ImageProcessor::preprocessImage(const cv::Mat& croppedImage) {
     return binary;
 }
 
+/**
+ * @brief Detects walls in the binary image using Hough transform
+ * 
+ * Uses the Hough transform to detect line segments in the binary image,
+ * which represent the walls of the maze.
+ * 
+ * @param binaryImage The preprocessed binary image
+ * @return std::vector<cv::Vec4i> Vector of line segments representing walls
+ */
 std::vector<cv::Vec4i> ImageProcessor::detectMazeWalls(const cv::Mat& binaryImage) {
     std::vector<cv::Vec4i> lines;
 
@@ -119,50 +171,16 @@ std::vector<cv::Vec4i> ImageProcessor::detectMazeWalls(const cv::Mat& binaryImag
     return lines;
 }
 
-/*
-std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv::Vec4i>& walls, const cv::Mat& binaryImage) {
-    // Determine grid size based on image dimensions
-    const int GRID_SIZE = 20; // pixels per cell
-    int rows = binaryImage.rows / GRID_SIZE;
-    int cols = binaryImage.cols / GRID_SIZE;
-    
-    std::vector<std::string> maze(rows, std::string(cols, '.'));
-
-    // Create a matrix to store wall density
-    cv::Mat wallDensity = cv::Mat::zeros(rows, cols, CV_32F);
-
-    // Process each wall segment
-    for (const auto& wall : walls) {
-        // Use Bresenham's line algorithm to get all points along the wall
-        cv::LineIterator it(binaryImage, cv::Point(wall[0], wall[1]), 
-                          cv::Point(wall[2], wall[3]), 8);
-        for(int i = 0; i < it.count; i++, ++it) {
-            cv::Point pt = it.pos();
-            int row = pt.y / GRID_SIZE;
-            int col = pt.x / GRID_SIZE;
-            
-            if (row >= 0 && row < rows && col >= 0 && col < cols) {
-                wallDensity.at<float>(row, col) += 1.0f;
-            }
-        }
-    }
-
-    // Convert density to walls using a threshold
-    float threshold = 20.0f; // Adjust this value based on conversion accuracy (lower = more walls)
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            if (wallDensity.at<float>(i, j) > threshold) {
-                maze[i][j] = '#';
-            }
-        }
-    }
-
-    // Debug output
-    std::cout << "Maze dimensions: " << rows << "x" << cols << std::endl;
-    
-    return maze;
-}
-*/
+/**
+ * @brief Generates a 2D maze array from the detected walls
+ * 
+ * Converts the detected wall segments into a grid representation of the maze,
+ * using a fixed size grid. Also detects start and end points of the maze.
+ * 
+ * @param walls Vector of line segments representing maze walls
+ * @param binaryImage The binary image used for reference dimensions
+ * @return std::vector<std::string> 2D array representation of the maze
+ */
 std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv::Vec4i>& walls, const cv::Mat& binaryImage) {
     const int MAZE_SIZE = 17; // Fixed grid
     std::vector<std::string> maze(MAZE_SIZE, std::string(MAZE_SIZE, '.'));
@@ -211,6 +229,17 @@ std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv:
     
     return maze;
 }
+
+/**
+ * @brief Detects start and end points of the maze
+ * 
+ * Looks for openings in the maze boundary walls to set start (S) and end (E) points.
+ * Checks all four walls in priority order: left, top, right, bottom.
+ * 
+ * @param maze Reference to the maze array to modify
+ * @param mazeSize Size of the maze grid
+ * @return std::pair<bool, bool> Flags indicating if start and end points were found
+ */
 std::pair<bool, bool> ImageProcessor::detectStartEndPoints(std::vector<std::string>& maze, const int mazeSize) {
     bool startFound = false;
     bool endFound = false;
