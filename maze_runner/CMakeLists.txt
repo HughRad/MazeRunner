@@ -13,7 +13,6 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning_interface
   moveit_servo
   ur3_moveit_config
-<<<<<<< HEAD
   cv_bridge
   sensor_msgs
   std_msgs
@@ -21,10 +20,6 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 
-=======
-)
-
->>>>>>> 9a1c63e3eb78f9bb9d8a32fe79454b5e2d61a584
 find_package(OpenCV REQUIRED)
 ###################################
 ## catkin specific configuration ##
@@ -110,3 +105,4 @@ install(FILES
   launch/maze_runner.launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
 )
+
