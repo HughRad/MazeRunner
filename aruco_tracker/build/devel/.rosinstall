@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/corso/ws_moveit/src/aruco_tracker/build/devel/setup.sh
