@@ -27,10 +27,10 @@ public:
 
     /**
      * @brief Function that identifies the maze structure from an image
-     * @param imagePath path to the image file
+     * @param imagePath path to the image file // changed by corso to take cv::Mat directly for integration
      * @return a vector of strings representing the maze structure
      */
-    std::vector<std::string> processMaze(const std::string &imagePath, DebugInfo* debugInfo = nullptr);
+    std::vector<std::string> processMaze(const cv::Mat& image, DebugInfo* debugInfo = nullptr);
 
     private:
     /**

@@ -7,6 +7,10 @@
     <arg name="sim" value="true"/>
   </include>
   
+    <!-- Launch Aruco tracker -->
+  <include file="$(find aruco_tracker)/launch/aruco_tracker.launch">
+  </include>
+
   <!-- Launch RViz with a custom maze_runner config-->
   <node name="rviz" pkg="rviz" type="rviz" required="true" 
         args="-d $(find maze_runner)/config/rviz_config.rviz"/>

@@ -1,0 +1,64 @@
+moveit_servo:
+  # Parameters for the servo node
+  
+  # Time-related parameters
+  publish_period: 0.01  # 100Hz control loop
+  
+  # Frame names
+  planning_frame: base_link  # Frame in which commands are given
+  ee_frame_name: tool0       # End effector frame
+  robot_link_command_frame: tool0
+  
+  # Configure velocity limits - adjust based on your needs
+  scale:
+    linear: 0.3    # Max linear velocity scale
+    rotational: 0.3  # Max angular velocity scale
+    joint: 0.4       # Max joint angular velocity scale
+  
+  # Lower values are more strict
+  incoming_command_timeout: 0.1   # Stop robot if command not received
+  
+  # Collision checking parameters
+  check_collisions: true         # Enable collision checking
+  collision_check_rate: 10.0     # Rate at which to check for collisions
+  self_collision_proximity_threshold: 0.01  # Distance (m) to consider self-collision imminent
+  scene_collision_proximity_threshold: 0.02  # Distance (m) to consider scene collision imminent
+  
+  # Joint limits
+  enforce_joint_model_state_limits: true
+  enforce_joint_model_velocity_limits: true
+  enforce_joint_acceleration_limits: false
+  joint_limit_margin: 0.1  # Will slow down when getting close to limits
+  
+  # Filtering
+  low_pass_filter_coeff: 2.0  # Larger -> less filtering (more responsive)
+  
+  # Commanded input parameters
+  command_in_type: "speed_units"  # "unitless", "speed_units", "position"
+  joint_topic: joint_states
+  
+  # Controller parameters
+  command_out_type: "trajectory"  # For Gazebo with JointTrajectoryController
+  command_out_topic: "/arm_controller/command"  # Topic for Gazebo controller
+  
+  # What to publish
+  publish_joint_positions: true
+  publish_joint_velocities: true
+  publish_joint_accelerations: false
+  
+  # The distance (in m) to move the robot when interpreting translation commands
+  linear_command_scale: 0.06
+  angular_command_scale: 0.06
+  
+  # Whether to display warning logs
+  verbose: true
+  
+  # UR3-specific joint names
+  # Gazebo will use joint names like these
+  joint_names:
+    - shoulder_pan_joint
+    - shoulder_lift_joint
+    - elbow_joint
+    - wrist_1_joint
+    - wrist_2_joint
+    - wrist_3_joint

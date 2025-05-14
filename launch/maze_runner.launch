@@ -1,6 +1,7 @@
 <launch>
   <!-- Need to launch the robot bring up separately
-  roslaunch ur_robot_driver ur3_bringup.launch robot_ip:=192.168.0.250 (robot ip) -->  
+  roslaunch ur_robot_driver ur3_bringup.launch robot_ip:=192.168.0.195 (robot ip) -->  
+    <!--roslaunch ur_robot_driver ur3_bringup.launch robot_ip:=192.168.1.195 (robot ip) -->  
 
   <!-- Launch MoveIt for UR3 with real robot -->
   <include file="$(find ur3_moveit_config)/launch/moveit_planning_execution.launch">
@@ -12,6 +13,10 @@
   <!-- Launch RViz with a custom maze_runner config -->
   <node name="rviz" pkg="rviz" type="rviz" required="true"
         args="-d $(find maze_runner)/config/rviz_config.rviz"/>
+
+    <!-- Launch Aruco tracker -->
+  <include file="$(find aruco_tracker)/launch/aruco_tracker.launch">
+  </include>
 
   <!-- Launch the maze_runner node after a delay to ensure everything is loaded -->
   <node name="maze_runner" pkg="maze_runner" type="maze_runner" output="screen"

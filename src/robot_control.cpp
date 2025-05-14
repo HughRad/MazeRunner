@@ -8,37 +8,236 @@
 #include <moveit_msgs/MoveGroupAction.h>
 #include <sensor_msgs/JointState.h>
 #include "maze_solver.h"
-
+#include "image_processing.h"
+#include <geometry_msgs/Twist.h>
+#include <std_msgs/Float64.h>
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/opencv.hpp>
+#include <tf/transform_datatypes.h>
+#include <Eigen/Core>
+#include <tf2/LinearMath/Transform.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <Eigen/Geometry>
+#include <std_srvs/Empty.h>
 
 class DrawingRobot {
 private:
     ros::NodeHandle nh_;
     moveit::planning_interface::MoveGroupInterface move_group_;
     std::string planning_group_;
-    double hover_offset_; // Offset for hovering above the drawing surface
-    
-    // Add a joint state subscriber for monitoring
+
+    // Offset for hovering above the drawing surface
+    double hover_offset_; 
+
+    // Joint state subscriber for monitoring
     ros::Subscriber joint_state_sub_;
     sensor_msgs::JointState latest_joint_state_;
     bool joint_state_received_;
-    
-    // Add synchronization timeout parameters
+
+    // Servo control subscribers
+    ros::Subscriber waypoint_sub_;
+    ros::Subscriber rotation_sub_;
+    ros::Subscriber corner_waypoint_sub_;
+
+    // Imaging subscriber
+    ros::Subscriber image_sub_;
+    bool image_received_;
+
+    // Snapshot subscriber for maze processing
+    ros::Subscriber snapshot_sub_;
+    bool snapshot_received_;
+
+    // Synchronization timeout parameters
     const double sync_timeout_ = 10.0; // Maximum time to wait for sync in seconds
-    const double position_tolerance_ = 0.5; // Tolerance for position checking
+    const double position_tolerance_ = 0.01; // Tolerance for position checking
+
+    // Store the latest point and rotation commands
+    geometry_msgs::Point latest_point_;
+    double latest_rotation_;
+    bool point_received_;
+    bool rotation_received_;
+    bool maze_corner_received_;
+
+    // Velocity control parameters
+    // double velocity_scale_factor_;
+    double rotation_scale_factor_;
+    bool point_control_active_;
+    ros::Time last_velocity_command_time_;
+    double velocity_timeout_;
+
+    // Timer for velocity control updates
+    ros::Timer position_control_timer_;
+
+    // Direction extractor configuration parameters
+    double min_velocity_threshold_;
+    double max_step_scale_;
+    
+    // Add publisher for end effector pose
+    ros::Publisher end_effector_pub_;
+    
+    // Timer for publishing end effector position
+    ros::Timer end_effector_pub_timer_;
+    
+    // End effector publishing rate (Hz)
+    double end_effector_pub_rate_;
+
+    // End effector position publishing callback
+    void publishEndEffectorPose(const ros::TimerEvent& event) {
+        try {
+            // Get current end effector pose
+            geometry_msgs::Pose current_pose = getCurrentPose();
+            
+            // Create PoseStamped message
+            geometry_msgs::PoseStamped pose_stamped;
+            pose_stamped.header.stamp = ros::Time::now();
+            pose_stamped.header.frame_id = "world"; // Use the correct frame ID
+            pose_stamped.pose = current_pose;
+            
+            // Publish the pose
+            end_effector_pub_.publish(pose_stamped);
+            
+            // Log occasionally for debugging
+            ROS_DEBUG_THROTTLE(10.0, "Published end effector pose: [%.3f, %.3f, %.3f]",
+                            current_pose.position.x, current_pose.position.y, current_pose.position.z);
+        }
+        catch (const std::exception& e) {
+            ROS_ERROR_THROTTLE(5.0, "Exception in publishEndEffectorPose: %s", e.what());
+        }
+    }
+
+    // waypoint command callback
+    void waypointCallback(const geometry_msgs::Point::ConstPtr& msg) {
+    latest_point_ = *msg;
+    point_received_ = true;
+    last_velocity_command_time_ = ros::Time::now();
+    }
+
+    // Rotation command callback
+    void rotationCallback(const std_msgs::Float64::ConstPtr& msg) {
+    latest_rotation_ = msg->data;
+    rotation_received_ = true;
+    }
+    // position control update function (called by timer)
+    void positionControlUpdate(const ros::TimerEvent& event) {
+        if (!point_control_active_ || !point_received_) {
+            return;
+        }
+        
+        // Check if the waypoint command has timed out
+        if ((ros::Time::now() - last_velocity_command_time_).toSec() > velocity_timeout_) {
+            ROS_WARN_THROTTLE(2.0, "Servoing command timeout! Stopping robot.");
+            stopRobot();
+            return;
+        }
+        
+        try {
+            // Use a local copy of the latest point and rotation for thread safety
+            geometry_msgs::Point current_point_cmd = latest_point_;
+            double current_rotation_cmd = latest_rotation_;           
+
+            // Get current state
+            geometry_msgs::Pose target_pose = getCurrentPose();
+        
+            target_pose.position = current_point_cmd;  // Update only the position component
+            // target_pose.position.z = 0.35;
+     
+            ROS_INFO_THROTTLE(0.5, "Moving based on waypoint command: distance=%.3f, angle=%.1f deg, "
+                                "waypoint=[%.2f, %.2f, %.2f]",
+                            target_pose.position.x, target_pose.position.y, target_pose.position.z);
+            
+            // Execute the motion without planning (direct movement)
+            executeCartesianMotion(target_pose);
+        }
+        catch (const std::exception& e) {
+            ROS_ERROR("Exception in position control update: %s", e.what());
+            stopRobot();
+        }
+        catch (...) {
+            ROS_ERROR("Unknown exception in position control update");
+            stopRobot();
+        }
+    }
+
+    // Execute immediate Cartesian motion without full planning
+    void executeCartesianMotion(const geometry_msgs::Pose& target_pose) {
+        try {       
+            // Set start state to current
+            move_group_.setStartStateToCurrentState();
+            
+            // Create a vector of waypoints with just the target
+            std::vector<geometry_msgs::Pose> waypoints;
+            waypoints.push_back(target_pose);
+            
+            // Compute cartesian path with very small step size
+            moveit_msgs::RobotTrajectory trajectory;
+            double fraction = move_group_.computeCartesianPath(
+                waypoints, 0.01, 0.0, trajectory);
+            
+            if (fraction > 0.95) {
+                // Execute the trajectory directly
+                move_group_.execute(trajectory);
+            }
+            else {
+                ROS_WARN_THROTTLE(2.0, "Could not compute full Cartesian path (%.2f%%), skipping motion", 
+                                fraction * 100.0);
+            }
+        }
+        catch (const std::exception& e) {
+            ROS_ERROR("Exception in executeCartesianMotion: %s", e.what());
+        }
+        catch (...) {
+            ROS_ERROR("Unknown exception in executeCartesianMotion");
+        }
+    }
+
+    // Stop the robot
+    void stopRobot() {
+        // Simply stop robot motion
+        move_group_.stop();
+    }
 
 public:
+    // Image processor object
+    bool image_processed_;
+    cv::Mat received_image_;
+
+    //Store the the waypoint representation of the maze corner
+    geometry_msgs::Point corner_waypoint_;
+  
     // Constructor
     DrawingRobot(const std::string& planning_group = "manipulator") 
-        : move_group_(planning_group), planning_group_(planning_group), joint_state_received_(false) {
-        
-        // Configure move group settings
-        configureMovement();
+        : move_group_(planning_group), 
+          planning_group_(planning_group), 
+          joint_state_received_(false),
+          image_received_(false),
+          snapshot_received_(false),
+          image_processed_(false),
+          point_received_(false),
+          rotation_received_(false),
+          maze_corner_received_(false),
+          point_control_active_(false),
+          rotation_scale_factor_(0.01),
+          velocity_timeout_(0.5),
+          latest_rotation_(0.0),
+          min_velocity_threshold_(0.001),
+          max_step_scale_(5.0),
+          end_effector_pub_rate_(10.0) // 10 Hz publishing rate
+          {
         
         // Set default values for drawing
         hover_offset_ = 0.01; // waypoint when hovering
-        
+ 
         // Setup joint state subscriber for monitoring
         joint_state_sub_ = nh_.subscribe("/joint_states", 10, &DrawingRobot::jointStateCallback, this);
+        
+        // Initialize end effector publisher
+        end_effector_pub_ = nh_.advertise<geometry_msgs::PoseStamped>("/robot/end_effector_pose", 10);
+        
+        // Start timer for end effector pose publishing
+        end_effector_pub_timer_ = nh_.createTimer(ros::Duration(1.0/end_effector_pub_rate_), 
+                                                &DrawingRobot::publishEndEffectorPose, this);
+        
+        ROS_INFO("End effector pose publisher initialized at %.1f Hz", end_effector_pub_rate_);
         
         // Wait for first joint state to ensure connection
         ROS_INFO("Waiting for first joint state message...");
@@ -55,7 +254,80 @@ public:
         }
     }
 
-    
+   // Get the current maze corner point
+    void mazeCornerCallback(const geometry_msgs::Point::ConstPtr& msg) {
+        corner_waypoint_ = *msg;
+        corner_waypoint_.x += 0.04;
+        corner_waypoint_.y += 0.024;
+        maze_corner_received_ = true;
+    }
+
+    // Return the latest rotation value received from ArUco tracker
+    double getMazeRotation() {
+        return latest_rotation_;
+    }
+
+    // Return the current Z-position of the end effector
+    double getCurrentDepth() {
+        return getCurrentPose().position.z;
+    }
+
+     // Enables velocity based control 
+    void enableServoControl() {
+        try {
+ 
+            // Reset flags
+            point_received_ = false;
+            rotation_received_ = false;
+            maze_corner_received_ = false;
+            
+            // Subscribe to wapoint and rotation topics
+            waypoint_sub_ = nh_.subscribe("aruco_tracker/waypoint", 1, &DrawingRobot::waypointCallback, this);
+            rotation_sub_ = nh_.subscribe("aruco_tracker/rotation", 1, &DrawingRobot::rotationCallback, this);
+            corner_waypoint_sub_ = nh_.subscribe("aruco_tracker/cornerwaypoint", 1, &DrawingRobot::mazeCornerCallback, this);
+
+            velocity_timeout_ = 0.5; // Stop if no commands received for 0.5 seconds
+            point_control_active_ = true;
+            
+            // Start the velocity control timer (10 Hz updates)
+            position_control_timer_ = nh_.createTimer(ros::Duration(0.1), &DrawingRobot::positionControlUpdate, this);
+            
+            ROS_INFO("Velocity-based control enabled. Listening to aruco_tracker topics.");
+        }
+        catch (const std::exception& e) {
+            ROS_ERROR("Exception in enableServoControl: %s", e.what());
+            point_control_active_ = false;
+        }
+    }
+
+    // Disable camera based control
+    void disableServoControl() {
+        point_control_active_ = false;
+        position_control_timer_.stop();
+        waypoint_sub_.shutdown();
+        rotation_sub_.shutdown();
+        corner_waypoint_sub_.shutdown();
+        image_sub_.shutdown(); // Also shut down the image subscriber
+        ROS_INFO("Velocity-based control disabled.");
+    }
+
+    // Enables image based control with snapshot subscription for maze processing
+    void enableImageBasedControl() {
+        // Enable servo control first
+        enableServoControl();
+        
+        // Reset the image received flag
+        image_received_ = false;
+        
+        // Subscribe to the image topic for camera control
+        image_sub_ = nh_.subscribe("/camera/color/image_raw", 1, &DrawingRobot::imageCallback, this);
+        
+        // Also subscribe to the snapshot topic for maze processing
+        snapshot_received_ = false;
+        snapshot_sub_ = nh_.subscribe("aruco_tracker/snapshot", 1, &DrawingRobot::snapshotCallback, this);
+        
+        ROS_INFO("Servo control enabled. Will automatically switch to maze processing when snapshot is received.");
+    }   
 
     // Joint state callback
     void jointStateCallback(const sensor_msgs::JointState::ConstPtr& msg) {
@@ -63,23 +335,41 @@ public:
         joint_state_received_ = true;
     }
 
-    // Configure movement parameters
-    void configureMovement() {
-        // Set max velocity and acceleration scaling - lower for drawing precision
-        move_group_.setMaxVelocityScalingFactor(0.2);  // 20% of maximum velocity
-        move_group_.setMaxAccelerationScalingFactor(0.2);  // 20% of maximum acceleration
-        
-        // Set planning time
-        move_group_.setPlanningTime(5.0);  // Give the planner more time (5 seconds)
-        
-        // Set goal tolerances - slightly increased for better success rate
-        move_group_.setGoalJointTolerance(0.05); 
-        move_group_.setGoalPositionTolerance(0.01); 
-        move_group_.setGoalOrientationTolerance(0.05);
-        
-        // Print reference frame and end effector info
-        ROS_INFO("Reference frame: %s", move_group_.getPlanningFrame().c_str());
-        ROS_INFO("End effector link: %s", move_group_.getEndEffectorLink().c_str());
+    // Image callback function for camera control
+    void imageCallback(const sensor_msgs::Image::ConstPtr& msg) {
+        if (!image_received_) {
+            ROS_INFO("Camera feed active for camera control.");
+            image_received_ = true;
+        }
+    }
+
+    // Snapshot callback function for maze processing
+    void snapshotCallback(const sensor_msgs::Image::ConstPtr& msg) {
+        if (!snapshot_received_) {
+            ROS_INFO("Snapshot received from ArUco tracker! Processing maze.");
+            snapshot_received_ = true;
+            
+            // Unsubscribe from the snapshot topic
+            snapshot_sub_.shutdown();
+            
+            // Convert the ROS image message to OpenCV format
+            cv_bridge::CvImagePtr cv_ptr;
+            try {
+                cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+                received_image_ = cv_ptr->image; // Store the image in the class variable
+                image_processed_ = true;
+                ROS_INFO("Snapshot processed successfully. Ready for maze processing.");
+                
+                disableServoControl();
+                
+            } catch (cv_bridge::Exception& e) {
+                ROS_ERROR("cv_bridge exception: %s", e.what());
+                image_processed_ = false;
+            }
+            
+            // Allow time for the robot to stabilize
+            ros::Duration(2.0).sleep();
+        }
     }
 
     // Improved sync function that waits for controller to stabilize
@@ -226,7 +516,7 @@ public:
     geometry_msgs::Pose getCurrentPose() {
         return move_group_.getCurrentPose().pose;
     }
-    
+
     // Create a hover pose above a drawing pose
     geometry_msgs::Pose getHoverPose(const geometry_msgs::Pose& drawing_pose) {
         geometry_msgs::Pose hover_pose = drawing_pose;
@@ -234,18 +524,20 @@ public:
         return hover_pose;
     }
     
-    // Create a pose from x,y,z coordinates
+    // Create a pose from x,y,z coordinates with fixed orientation (pointing down with +x alignment)
     geometry_msgs::Pose makePose(double x, double y, double z) {
         geometry_msgs::Pose pose;
         pose.position.x = x;
         pose.position.y = y;
         pose.position.z = z;
         
-        // Set orientation - pen pointing down (may need adjustment for your specific setup)
-        pose.orientation.x = 0.0;
-        pose.orientation.y = 1.0;
+        // Set orientation - end effector pointing downward with its x-axis aligned with the robot's +x direction
+        // This quaternion represents a 90-degree rotation around the Y axis
+        // This makes the Z-axis of the end effector point down, while keeping its X-axis aligned with the robot's +X
+        pose.orientation.x = 1.0;
+        pose.orientation.y = 0.0;  // sin(π/4)
         pose.orientation.z = 0.0;
-        pose.orientation.w = 0.0;
+        pose.orientation.w = 0.0;  // cos(π/4)
         
         return pose;
     }
@@ -452,6 +744,27 @@ public:
         ROS_ERROR("All recovery attempts failed");
         return false;
     }
+    
+    // Set end effector publishing rate
+    void setEndEffectorPublishRate(double rate) {
+        end_effector_pub_rate_ = rate;
+        
+        // Restart timer with new rate if it's active
+        if (end_effector_pub_timer_.isValid()) {
+            end_effector_pub_timer_.stop();
+            end_effector_pub_timer_ = nh_.createTimer(ros::Duration(1.0/end_effector_pub_rate_), 
+                                                   &DrawingRobot::publishEndEffectorPose, this);
+        }
+        
+        ROS_INFO("End effector publish rate updated to %.1f Hz", end_effector_pub_rate_);
+    }
+    
+    // Publish end effector pose once (for manual triggering)
+    void publishEndEffectorPoseOnce() {
+        ros::TimerEvent event; // Empty event
+        publishEndEffectorPose(event);
+        ROS_INFO("End effector pose published manually");
+    }
 };
 
 int main(int argc, char** argv)
@@ -462,118 +775,144 @@ int main(int argc, char** argv)
     
     ROS_INFO("Starting UR3 Cartesian waypoint following program");
     
-    // Initialize the robot interface
-    DrawingRobot robot;
-    
-    // Allow more time for ROS to fully initialize and connect to the robot
-    ros::Duration(5.0).sleep();
-    
-    // Print current joint positions
-    std::vector<double> current_joints = robot.getCurrentJointPositions();
-    std::string joints_str = "";
-    for (double val : current_joints) {
-        joints_str += std::to_string(val) + " ";
-    }
-    ROS_INFO("Robot starting joint positions: [%s]", joints_str.c_str());
-    
-    // Define the desired initial joint configuration
-    std::vector<double> initial_joint_positions = {0.0, -1.569, 2.145, -2.143, -1.618, 0.0};
-    
-    // Initialize robot with the specified joint configuration
-    bool init_success = robot.initializeToPosition(initial_joint_positions);
-    
-    // If initialization fails, try recovery and retry
-    if (!init_success) {
-        ROS_WARN("Initial movement failed. Attempting recovery...");
-        robot.recoverFromJointStateError();
+    try {
+        // Initialize the robot interface
+        DrawingRobot robot;
         
-        // Try again after recovery
-        init_success = robot.initializeToPosition(initial_joint_positions);
+        // Initialize image processor
+        ImageProcessor processor; 
+        ImageProcessor::DebugInfo debugInfo;
+
+        // Allow more time for ROS to fully initialize and connect to the robot
+        ros::Duration(5.0).sleep();
+        
+        // Print current joint positions
+        std::vector<double> current_joints = robot.getCurrentJointPositions();
+        std::string joints_str = "";
+        for (double val : current_joints) {
+            joints_str += std::to_string(val) + " ";
+        }
+        ROS_INFO("Robot starting joint positions: [%s]", joints_str.c_str());
+        
+        // Define the desired initial joint configuration
+        std::vector<double> initial_joint_positions = {0.0, -1.452, 0.623, -0.748, -1.571, 0.0};
+        
+        // Initialize robot with the specified joint configuration
+        bool init_success = robot.initializeToPosition(initial_joint_positions);
+        
+        // If initialization fails, try recovery and retry
         if (!init_success) {
-            ROS_ERROR("Failed to initialize robot even after recovery attempt");
+            ROS_WARN("Initial movement failed. Attempting recovery...");
+            robot.recoverFromJointStateError();
+            
+            // Try again after recovery
+            init_success = robot.initializeToPosition(initial_joint_positions);
+            if (!init_success) {
+                ROS_ERROR("Failed to initialize robot even after recovery attempt");
+                return 1;
+            }
+        }
+        
+        ROS_INFO("Robot successfully initialized to specified joint configuration");
+        
+        // Allow more time for ROS to fully initialize and connect to the robot
+        ros::Duration(5.0).sleep();
+
+        // Create a service client for ArUco tracker
+        ros::NodeHandle nh;
+
+        ros::ServiceClient aruco_client = nh.serviceClient<std_srvs::Empty>("aruco_tracker/start");
+        
+        // Wait for the service to be available
+        ROS_INFO("Waiting for aruco_tracker/start service...");
+        if (!ros::service::waitForService("aruco_tracker/start", ros::Duration(10.0))) {
+            ROS_ERROR("Service aruco_tracker/start not available after waiting");
             return 1;
         }
-    }
-    
-    ROS_INFO("Robot successfully initialized to specified joint configuration");
-    
-    // Allow more time for ROS to fully initialize and connect to the robot
-    ros::Duration(5.0).sleep();
-    
-    // Need to add a new function here for integration with nicks code
-    // Velocity based end effector control to image the maze
-    
-    //get the maze layout as a string (should be given by Ryan)
-    ImageProcessor processor; // Initialise image processor
-    std::vector<std::string> maze = processor.processMaze("../images/test_maze.JPG", nullptr); // Convert JPG image to maze string
-
-    // Create a maze_solver object with the maze string as an input
-    maze_solver solver(maze);
-
-    //set waypoint parameters
-    double scale = 0.01; //set as distance between maze grid points (manualy measured)
-    std::pair<double, double>  world = {0.2, 0.2}; //set as the world coords of the mazes left top most point (should be given by nick)
-    double rotation = 0; // Rotation of maze in degrees - clockwise rotation (should be given by nick)
-    double depth = 0.145; // set as the drawing depth (should be given by nick)
-    // ~14.5 cm end effector
-
-    solver.scaleSet(scale);
-    solver.worldSet(world);
-    solver.rotationSet(rotation);
-    solver.depthSet(depth);
-
-    //solve the maze and output the required robot waypoints in order of execution
-    std::vector<geometry_msgs::Pose> robotWaypoints = solver.pathPlaner();
-
-    std::cout << "Press any key to continue...";
-    std::cin.get();
         
-    ROS_INFO("Executing Cartesian path through defined waypoints");
-    
-    // Execute the Cartesian path - using the robotWaypoints from your maze solver
-    bool path_success = robot.executeCartesianPath(robotWaypoints);
-
-    // If path execution fails, try recovery and retry with more robust error handling
-    if (!path_success) {
-        ROS_WARN("Cartesian path execution failed. Attempting recovery...");
-        
-        if (robot.recoverFromJointStateError(3)) {
-            // Try again after recovery, but with a smaller subset of waypoints
-            // to increase chances of success
-            ROS_INFO("Retrying with simplified path");
-            std::vector<geometry_msgs::Pose> simplified_waypoints;
-            
-            // Only keep every other waypoint to simplify the path
-            for (size_t i = 0; i < robotWaypoints.size(); i += 2) {
-                simplified_waypoints.push_back(robotWaypoints[i]);
-            }
-            
-            // Make sure we still have the last point to close the path
-            if (simplified_waypoints.back().position.x != robotWaypoints.back().position.x ||
-                simplified_waypoints.back().position.y != robotWaypoints.back().position.y ||
-                simplified_waypoints.back().position.z != robotWaypoints.back().position.z) {
-                simplified_waypoints.push_back(robotWaypoints.back());
-            }
-            
-            path_success = robot.executeCartesianPath(simplified_waypoints);
-            
-            if (!path_success) {
-                ROS_ERROR("Failed to execute even simplified Cartesian path");
-            }
+        // Call the service
+        std_srvs::Empty srv;
+        ROS_INFO("Calling aruco_tracker/start service...");
+        if(aruco_client.call(srv)) {
+            ROS_INFO("successfully called aruco tracker service");
+        } else{
+            ROS_ERROR("Failed to call service :(");
+            return 1;
         }
+        // Enable image-based control (which also subscribes to snapshot topic)
+        robot.enableImageBasedControl();
+
+        // Wait for snapshot to be received and processed
+        ros::Time start_time = ros::Time::now();
+        const double timeout = 120.0; // 120 seconds timeout (longer to allow for proper alignment)
+        ROS_INFO("Waiting for properly aligned snapshot from ArUco tracker...");
+        while (!robot.image_processed_ && (ros::Time::now() - start_time).toSec() < timeout) {
+            ros::Duration(0.1).sleep();
+            ros::spinOnce();
+        }
+
+        if (!robot.image_processed_) {
+            ROS_ERROR("No snapshot received within timeout period. Aborting maze processing.");
+            return 1;
+        } else {
+            ROS_INFO("Snapshot received and processed successfully!");
+        }
+
+        // Process the maze using the received snapshot
+        std::vector<std::string> maze = processor.processMaze(robot.received_image_, &debugInfo);
+       
+        // Create a maze_solver object with the maze string as an input
+        maze_solver solver(maze);
+        geometry_msgs::Point maze_corner = robot.corner_waypoint_;
+        //set waypoint parameters
+        double scale = 0.008; //set as distance between maze grid points (manualy measured) 0.0084 was too big, changed to this but untested
+        std::pair<double, double>  world = {maze_corner.x, maze_corner.y}; //set as the world coords of the mazes left top most point (should be given by nick)
+        double rotation = 90 + robot.getMazeRotation(); // Rotation of maze in degrees - clockwise rotation (should be given by nick)
+        double depth = 0.158;
+        // ~14.8 cm end effector
+
+        solver.scaleSet(scale);
+        solver.worldSet(world);
+        solver.rotationSet(rotation);
+        solver.depthSet(depth);
+        // // DEBUGGING: Display the maze we're solving
+        // ROS_INFO("Maze to solve:");
+        // for (const auto& row : maze) {
+        //     ROS_INFO("%s", row.c_str());
+        // }
+
+        // Get the maze solution path
+        // This returns path points in image/maze coordinates
+        std::vector<geometry_msgs::Pose> maze_path = solver.pathPlaner();
+
+        ROS_INFO("Moving to execute Cartesian path through defined waypoints");
+        ros::Duration(1.0).sleep();
+            
+        ROS_INFO("Executing Cartesian path through defined waypoints");
+        
+        // Execute the Cartesian path - using the robotWaypoints from maze solver
+        bool path_success = robot.executeCartesianPath(maze_path);
+        
+        // Return to the initial joint configuration with improved error handling
+        ROS_INFO("Returning to initial configuration");
+        bool return_success = robot.initializeToPosition(initial_joint_positions);
+        
+        if (!return_success) {
+            ROS_WARN("Failed to return to initial configuration. Attempting recovery...");
+            robot.recoverFromJointStateError();
+            robot.initializeToPosition(initial_joint_positions);
+        }
+        
+        ROS_INFO("Program completed");
+        ros::shutdown();
+        return 0;
     }
-    
-    // Return to the initial joint configuration with improved error handling
-    ROS_INFO("Returning to initial configuration");
-    bool return_success = robot.initializeToPosition(initial_joint_positions);
-    
-    if (!return_success) {
-        ROS_WARN("Failed to return to initial configuration. Attempting recovery...");
-        robot.recoverFromJointStateError();
-        robot.initializeToPosition(initial_joint_positions);
+    catch (const std::exception& e) {
+        ROS_ERROR("Exception in main: %s", e.what());
+        return 1;
     }
-    
-    ROS_INFO("Program completed");
-    ros::shutdown();
-    return 0;
+    catch (...) {
+        ROS_ERROR("Unknown exception in main");
+        return 1;
+    }
 }

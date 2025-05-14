@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Site BuildName="(empty)"
+	BuildStamp="20250501-0036-Experimental"
+	Name="gs66-stealth"
+	Generator="ctest-3.16.3"
+	CompilerName="/usr/bin/c++"
+	CompilerVersion="9.4.0"
+	OSName="Linux"
+	Hostname="gs66-stealth"
+	OSRelease="5.15.0-136-generic"
+	OSVersion="#147~20.04.1-Ubuntu SMP Wed Mar 19 16:13:14 UTC 2025"
+	OSPlatform="x86_64"
+	Is64Bits="1"
+	VendorString="GenuineIntel"
+	VendorID="Intel Corporation"
+	FamilyID="6"
+	ModelID="165"
+	ProcessorCacheSize="12288"
+	NumberOfLogicalCPU="12"
+	NumberOfPhysicalCPU="6"
+	TotalVirtualMemory="2047"
+	TotalPhysicalMemory="15804"
+	LogicalProcessorsPerPhysical="2"
+	ProcessorClockFrequency="4316.24"
+	>
+	<Testing>
+		<StartDateTime>May 01 12:35 AEST</StartDateTime>
+		<StartTestTime>1746066956</StartTestTime>
+		<TestList/>
+		<EndDateTime>May 01 12:35 AEST</EndDateTime>
+		<EndTestTime>1746066956</EndTestTime>
+		<ElapsedMinutes>0</ElapsedMinutes>
+	</Testing>
+</Site>

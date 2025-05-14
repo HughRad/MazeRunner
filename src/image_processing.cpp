@@ -3,8 +3,8 @@
 
 ImageProcessor::ImageProcessor() {}
 
-std::vector<std::string> ImageProcessor::processMaze(const std::string& imagePath, DebugInfo* debugInfo) {
-    cv::Mat image = cv::imread(imagePath, cv::IMREAD_COLOR);
+std::vector<std::string> ImageProcessor::processMaze(const cv::Mat& image, DebugInfo* debugInfo) {
+
     if (image.empty()) {
         std::cerr << "Error: Could not load image." << std::endl;
         return {};
@@ -33,6 +33,8 @@ std::vector<std::string> ImageProcessor::processMaze(const std::string& imagePat
                      cv::Point(wall[2], wall[3]), cv::Scalar(0, 0, 255), 2);
         }
         debugInfo->walls = walls;
+
+        cv::imshow("Maze Walls", debugInfo->wallsImage);
     }
 
     // Generate the maze structure
@@ -209,20 +211,12 @@ std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv:
     
     return maze;
 }
-
 std::pair<bool, bool> ImageProcessor::detectStartEndPoints(std::vector<std::string>& maze, const int mazeSize) {
     bool startFound = false;
     bool endFound = false;
 
-    // Find start point (gap in top or left wall)
-    // Check top wall
-    for (int j = 0; j < mazeSize && !startFound; j++) {
-        if (maze[0][j] == '.' && maze[1][j] == '.') {
-            maze[0][j] = 'S';
-            startFound = true;
-        }
-    }
-    // Check left wall if start not found
+    // Priority order for start point: Left -> Top -> Right -> Bottom
+    // Check left wall for start
     for (int i = 0; i < mazeSize && !startFound; i++) {
         if (maze[i][0] == '.' && maze[i][1] == '.') {
             maze[i][0] = 'S';
@@ -230,18 +224,59 @@ std::pair<bool, bool> ImageProcessor::detectStartEndPoints(std::vector<std::stri
         }
     }
 
-    // Find end point (gap in bottom or right wall)
-    // Check bottom wall
-    for (int j = 0; j < mazeSize && !endFound; j++) {
+    // Check top wall for start if not found
+    for (int j = 0; j < mazeSize && !startFound; j++) {
+        if (maze[0][j] == '.' && maze[1][j] == '.') {
+            maze[0][j] = 'S';
+            startFound = true;
+        }
+    }
+
+    // Check right wall for start if not found
+    for (int i = 0; i < mazeSize && !startFound; i++) {
+        if (maze[i][mazeSize-1] == '.' && maze[i][mazeSize-2] == '.') {
+            maze[i][mazeSize-1] = 'S';
+            startFound = true;
+        }
+    }
+
+    // Check bottom wall for start if not found
+    for (int j = 0; j < mazeSize && !startFound; j++) {
         if (maze[mazeSize-1][j] == '.' && maze[mazeSize-2][j] == '.') {
-            maze[mazeSize-1][j] = 'E';
+            maze[mazeSize-1][j] = 'S';
+            startFound = true;
+        }
+    }
+
+    // After finding start, check all walls again for any remaining gaps to mark as end
+    // Check left wall for end
+    for (int i = 0; i < mazeSize && !endFound; i++) {
+        if (maze[i][0] == '.' && maze[i][1] == '.') {
+            maze[i][0] = 'E';
             endFound = true;
         }
     }
-    // Check right wall if end not found
+
+    // Check top wall for end if not found
+    for (int j = 0; j < mazeSize && !endFound; j++) {
+        if (maze[0][j] == '.' && maze[1][j] == '.') {
+            maze[0][j] = 'E';
+            endFound = true;
+        }
+    }
+
+    // Check right wall for end if not found
     for (int i = 0; i < mazeSize && !endFound; i++) {
         if (maze[i][mazeSize-1] == '.' && maze[i][mazeSize-2] == '.') {
             maze[i][mazeSize-1] = 'E';
+            endFound = true;
+        }
+    }
+
+    // Check bottom wall for end if not found
+    for (int j = 0; j < mazeSize && !endFound; j++) {
+        if (maze[mazeSize-1][j] == '.' && maze[mazeSize-2][j] == '.') {
+            maze[mazeSize-1][j] = 'E';
             endFound = true;
         }
     }
