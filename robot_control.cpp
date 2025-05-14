@@ -37,6 +37,7 @@ private:
     // Servo control subscribers
     ros::Subscriber waypoint_sub_;
     ros::Subscriber rotation_sub_;
+    ros::Subscriber corner_waypoint_sub_;
 
     // Imaging subscriber
     ros::Subscriber image_sub_;
@@ -55,6 +56,7 @@ private:
     double latest_rotation_;
     bool point_received_;
     bool rotation_received_;
+    bool maze_corner_received_;
 
     // Velocity control parameters
     // double velocity_scale_factor_;
@@ -130,14 +132,14 @@ private:
         
         try {
             // Use a local copy of the latest point and rotation for thread safety
-            geometry_msgs::Point current_velocity_cmd = latest_point_;
+            geometry_msgs::Point current_point_cmd = latest_point_;
             double current_rotation_cmd = latest_rotation_;           
 
             // Get current state
             geometry_msgs::Pose target_pose = getCurrentPose();
-          
         
-            target_pose.position = current_velocity_cmd;  // Update only the position component
+            target_pose.position = current_point_cmd;  // Update only the position component
+            // target_pose.position.z = 0.35;
      
             ROS_INFO_THROTTLE(0.5, "Moving based on waypoint command: distance=%.3f, angle=%.1f deg, "
                                 "waypoint=[%.2f, %.2f, %.2f]",
@@ -199,35 +201,32 @@ public:
     bool image_processed_;
     cv::Mat received_image_;
 
+    //Store the the waypoint representation of the maze corner
+    geometry_msgs::Point corner_waypoint_;
   
     // Constructor
     DrawingRobot(const std::string& planning_group = "manipulator") 
         : move_group_(planning_group), 
           planning_group_(planning_group), 
-          //camera_calibrated_(false),
           joint_state_received_(false),
           image_received_(false),
           snapshot_received_(false),
           image_processed_(false),
           point_received_(false),
           rotation_received_(false),
+          maze_corner_received_(false),
           point_control_active_(false),
-        //   velocity_scale_factor_(1.0),
           rotation_scale_factor_(0.01),
           velocity_timeout_(0.5),
           latest_rotation_(0.0),
           min_velocity_threshold_(0.001),
           max_step_scale_(5.0),
           end_effector_pub_rate_(10.0) // 10 Hz publishing rate
-        //   direction_extractor_() 
           {
         
         // Set default values for drawing
         hover_offset_ = 0.01; // waypoint when hovering
-        
-        // Initialize camera calibration
-        // initializeCameraCalibration();
-        
+ 
         // Setup joint state subscriber for monitoring
         joint_state_sub_ = nh_.subscribe("/joint_states", 10, &DrawingRobot::jointStateCallback, this);
         
@@ -255,18 +254,14 @@ public:
         }
     }
 
-    std::pair<double, double> getMazeWorldCoordinates() {
-        // Get current end effector pose after camera alignment
-        geometry_msgs::Pose current_pose = getCurrentPose();
-        
-        // Convert the coordinate to the top-left corner of the maze
-        // You may need to add offsets based on your camera position vs. end effector position
-        double x = current_pose.position.x;
-        double y = current_pose.position.y;
-        
-        return std::make_pair(x, y);
+   // Get the current maze corner point
+    void mazeCornerCallback(const geometry_msgs::Point::ConstPtr& msg) {
+        corner_waypoint_ = *msg;
+        corner_waypoint_.x += 0.04;
+        corner_waypoint_.y += 0.024;
+        maze_corner_received_ = true;
     }
-    
+
     // Return the latest rotation value received from ArUco tracker
     double getMazeRotation() {
         return latest_rotation_;
@@ -284,10 +279,12 @@ public:
             // Reset flags
             point_received_ = false;
             rotation_received_ = false;
+            maze_corner_received_ = false;
             
-            // Subscribe to velocity and rotation topics
+            // Subscribe to wapoint and rotation topics
             waypoint_sub_ = nh_.subscribe("aruco_tracker/waypoint", 1, &DrawingRobot::waypointCallback, this);
             rotation_sub_ = nh_.subscribe("aruco_tracker/rotation", 1, &DrawingRobot::rotationCallback, this);
+            corner_waypoint_sub_ = nh_.subscribe("aruco_tracker/cornerwaypoint", 1, &DrawingRobot::mazeCornerCallback, this);
 
             velocity_timeout_ = 0.5; // Stop if no commands received for 0.5 seconds
             point_control_active_ = true;
@@ -309,6 +306,7 @@ public:
         position_control_timer_.stop();
         waypoint_sub_.shutdown();
         rotation_sub_.shutdown();
+        corner_waypoint_sub_.shutdown();
         image_sub_.shutdown(); // Also shut down the image subscriber
         ROS_INFO("Velocity-based control disabled.");
     }
@@ -783,7 +781,8 @@ int main(int argc, char** argv)
         
         // Initialize image processor
         ImageProcessor processor; 
-        
+        ImageProcessor::DebugInfo debugInfo;
+
         // Allow more time for ROS to fully initialize and connect to the robot
         ros::Duration(5.0).sleep();
         
@@ -860,34 +859,34 @@ int main(int argc, char** argv)
         }
 
         // Process the maze using the received snapshot
-        std::vector<std::string> maze = processor.processMaze(robot.received_image_, nullptr);
+        std::vector<std::string> maze = processor.processMaze(robot.received_image_, &debugInfo);
        
         // Create a maze_solver object with the maze string as an input
         maze_solver solver(maze);
-
+        geometry_msgs::Point maze_corner = robot.corner_waypoint_;
         //set waypoint parameters
-        double scale = 0.01; //set as distance between maze grid points (manualy measured)
-        std::pair<double, double>  world = {0.2, 0.2}; //set as the world coords of the mazes left top most point (should be given by nick)
-        double rotation = 0; // Rotation of maze in degrees - clockwise rotation (should be given by nick)
-        double depth = 0.145;
-        // ~14.5 cm end effector
+        double scale = 0.008; //set as distance between maze grid points (manualy measured) 0.0084 was too big, changed to this but untested
+        std::pair<double, double>  world = {maze_corner.x, maze_corner.y}; //set as the world coords of the mazes left top most point (should be given by nick)
+        double rotation = 90 + robot.getMazeRotation(); // Rotation of maze in degrees - clockwise rotation (should be given by nick)
+        double depth = 0.158;
+        // ~14.8 cm end effector
 
         solver.scaleSet(scale);
         solver.worldSet(world);
         solver.rotationSet(rotation);
         solver.depthSet(depth);
-        // DEBUGGING: Display the maze we're solving
-        ROS_INFO("Maze to solve:");
-        for (const auto& row : maze) {
-            ROS_INFO("%s", row.c_str());
-        }
+        // // DEBUGGING: Display the maze we're solving
+        // ROS_INFO("Maze to solve:");
+        // for (const auto& row : maze) {
+        //     ROS_INFO("%s", row.c_str());
+        // }
 
         // Get the maze solution path
         // This returns path points in image/maze coordinates
         std::vector<geometry_msgs::Pose> maze_path = solver.pathPlaner();
 
-        std::cout << "Press Enter to execute the path...";
-        std::cin.get();
+        ROS_INFO("Moving to execute Cartesian path through defined waypoints");
+        ros::Duration(1.0).sleep();
             
         ROS_INFO("Executing Cartesian path through defined waypoints");
         
