@@ -1,6 +1,8 @@
 #include "maze_solver.h"
 #include <iostream>
 #include <algorithm> 
+#include <cmath>
+#include <limits>
 
 std::vector<geometry_msgs::Pose> maze_solver::pathPlaner(){
     // Solve the maze
@@ -18,9 +20,8 @@ std::vector<geometry_msgs::Pose> maze_solver::pathPlaner(){
     return waypoints;
 }
 
-
 maze_solver::maze_solver(const std::vector<std::string>& mazeStr) {
-    // defualt settings for scale and world coord
+    // default settings for scale and world coord
     world_ = {0, 0};
     scale_ = 1;
     rotation_ = 0;
@@ -33,7 +34,7 @@ maze_solver::maze_solver(const std::vector<std::string>& mazeStr) {
     // Create an empty maze grid based on the string ascii representation size
     maze.resize(rows, std::vector<char>(cols));
     
-    // Fills the empty maze grid with characters. Effectivly converts the incoming string maze to a char maze. Also maps out the start and end points
+    // Fills the empty maze grid with characters. Effectively converts the incoming string maze to a char maze. Also maps out the start and exit points
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             maze[i][j] = mazeStr[i][j];
@@ -42,12 +43,19 @@ maze_solver::maze_solver(const std::vector<std::string>& mazeStr) {
             if (maze[i][j] == 'S') {
                 start = {i, j};
             }
-            // Assuming 'E' represents the end
+            // Assuming 'E' represents an exit - collect all exits
             else if (maze[i][j] == 'E') {
-                end = {i, j};
+                exits.push_back({i, j});
             }
         }
     }
+    
+    // If no exits were found, print an error
+    if (exits.empty()) {
+        std::cout << "Error: No exit points ('E') found in the maze!" << std::endl;
+    }
+    
+    // closest_exit will be determined in the solve() method
 }
 
 bool maze_solver::isValid(int x, int y) const {
@@ -61,71 +69,99 @@ bool maze_solver::isValid(int x, int y) const {
 }
 
 std::vector<std::pair<int, int>> maze_solver::solve() {
+    if (exits.empty()) {
+        return {}; // Return empty path if no exits
+    }
+    
     // Queue for BFS, stores cells to be explored next
     std::queue<std::pair<int, int>> q;
     
-    // array to keep track of visited cells, creates a row x col array of bool false entries
+    // Array to keep track of visited cells, creates a row x col array of bool false entries
     std::vector<std::vector<bool>> visited(rows, std::vector<bool>(cols, false));
     
-    // Parent array to reconstruct the path, creates a row x col array of pairs set to (-1,-1). When we move to a new tile in the maze,
-    // the corisponding point in the parent array is set to whatever the last coordinate was. This helps reconstuct our path later.
+    // Parent array to reconstruct the path, creates a row x col array of pairs set to (-1,-1).
     std::vector<std::vector<std::pair<int, int>>> parent(rows, std::vector<std::pair<int, int>>(cols, {-1, -1}));
+    
+    // Distance array to track the distance from start to each cell
+    std::vector<std::vector<int>> distance(rows, std::vector<int>(cols, std::numeric_limits<int>::max()));
     
     // Start BFS from the start position
     q.push(start);
     visited[start.first][start.second] = true; // Mark this cell as visited
+    distance[start.first][start.second] = 0;   // Distance to start is 0
     
-    bool foundPath = false; // Path found = false until end is found 
+    int min_distance = std::numeric_limits<int>::max();
+    bool found_any_exit = false;
     
     // BFS
-    while (!q.empty() && !foundPath) {
-        auto current = q.front(); // Set the current cell being procesed as the one in the front of the queue; the order of discovery
-        q.pop(); // remove that same value was we are currently proccesing it
+    while (!q.empty()) {
+        auto current = q.front(); // Set the current cell being processed as the one in the front of the queue
+        q.pop(); // Remove that same value as we are currently processing it
         
         int x = current.first;
         int y = current.second;
+        int current_distance = distance[x][y];
         
-        // Check if this point is the end
-        if (x == end.first && y == end.second) {
-            foundPath = true;
-            break; // break while loop if true
+        // Check if this point is an exit
+        for (const auto& exit : exits) {
+            if (x == exit.first && y == exit.second) {
+                found_any_exit = true;
+                
+                // If this exit is closer than any previously found, update the closest exit
+                if (current_distance < min_distance) {
+                    min_distance = current_distance;
+                    closest_exit = exit;
+                }
+                
+                // Don't break - we want to check all exits that we reach at this distance
+            }
         }
         
-        // Explore all 4 ajacent grids to the current one being proccesed by applying the dx dy modifiers to the current xy
+        // If we've found an exit and we're now exploring cells that are further away than our closest exit,
+        // we can stop the BFS since we've already found the closest exit
+        if (found_any_exit && current_distance > min_distance) {
+            break;
+        }
+        
+        // Explore all 4 adjacent grids to the current one being processed
         for (int i = 0; i < 4; i++) {
             int newX = x + dx[i];
             int newY = y + dy[i];
             
             // If valid and not visited
             if (isValid(newX, newY) && !visited[newX][newY]) {
-                q.push({newX, newY}); // Push that point into the queue to be proccesed next
+                q.push({newX, newY}); // Push that point into the queue to be processed next
                 visited[newX][newY] = true; // Also mark this new point as visited to avoid revisiting later
                 parent[newX][newY] = {x, y}; // Remember the parent of the new point so we can determine the path later
+                distance[newX][newY] = current_distance + 1; // Update the distance
             }
         }
     }
     
-    // When the while loop is finished (either cause the end was found or all paths were explored)
-    // create a vector or grid coordinates that will be all the cells required to solve the maze
+    // When the while loop is finished, create a vector of grid coordinates for the solution path
     std::vector<std::pair<int, int>> path; 
     
-    if (foundPath) { // if the end was found, fill this vector out, otherwise it will remain empty
-        auto current = end; // Start from the end and follow parent array to backtrack to the start 
+    if (found_any_exit) {
+        // Start from the closest exit and follow parent array to backtrack to the start
+        auto current = closest_exit;
         
-        while (current.first != -1 && current.second != -1) { // while parent is not (-1 -1), the start position
+        // While we haven't reached the start
+        while (current.first != -1 && current.second != -1) {
             path.push_back(current);
-            current = parent[current.first][current.second]; // set current as the last currents perent and continue to backtrack
+            current = parent[current.first][current.second]; // Set current as the parent of the current position
         }
         
-        // One we reach the start again at (-1 -1), reverse the path to get from start to end
+        // Reverse the path to get from start to exit
         std::reverse(path.begin(), path.end());
+    } else {
+        std::cout << "No path found to any exit!" << std::endl;
     }
     
-    return path; //return the vector of solution coordinates
+    return path;
 }
 
 std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vector<std::pair<int, int>>& path) const {
-    if (path.empty()||path.size() == 1) {
+    if (path.empty() || path.size() == 1) {
         std::cout << "Invalid maze (no usable waypoints could be created)" << std::endl;
         return {};
     }
@@ -133,39 +169,12 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
     std::vector<std::pair<int, int>> waypoints; 
     std::vector<geometry_msgs::Pose> converted_waypoints;
 
-    waypoints.push_back(path[0]); // include the start point
-    
-    // if (path.size() == 1) { // If the path has only one point, return just that (after conversion to double and applying scale mods)
-
-    //     double angle_rad = rotation_ * M_PI / 180.0; 
-
-    //     double x = static_cast<double>(waypoints[0].first);
-    //     double y = static_cast<double>(waypoints[0].second);
-
-    //     double rotated_x = (x * cos(angle_rad) - y * sin(angle_rad));
-    //     double rotated_y = (x * sin(angle_rad) + y * cos(angle_rad));
-
-    //     double scaled_x = (rotated_x * scale_ * (-1)) + world_.first;
-    //     double scaled_y = (rotated_y * scale_) + world_.second;
-
-    //     geometry_msgs::Pose pose;
-    //     pose.position.x = scaled_x;
-    //     pose.position.y = scaled_y;
-    //     pose.position.z = depth_; 
-        
-    //     // Set orientation as identity quaternion (no rotation)
-    //     pose.orientation.x = 1.0;
-    //     pose.orientation.y = 0.0;
-    //     pose.orientation.z = 0.0;
-    //     pose.orientation.w = 0.0;
-        
-    //     converted_waypoints.push_back(pose);
-    //     return converted_waypoints;
-    // }
+    waypoints.push_back(path[0]); // Include the start point
     
     int currentDirection = 0; // Direction of movement (0 = undefined, 1 = horizontal, 2 = vertical)
     
-    for (int i = 1; i < path.size(); i++) {// Check to see if the path is currently moving horizontaly or verticaly
+    for (int i = 1; i < path.size(); i++) {
+        // Check to see if the path is currently moving horizontally or vertically
         int dx = path[i].first - path[i-1].first;
         int dy = path[i].second - path[i-1].second;
         
@@ -173,7 +182,7 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
         if (dx != 0) newDirection = 2; // Vertical movement
         else if (dy != 0) newDirection = 1; // Horizontal movement
         
-        // for the first step, set the initial direction
+        // For the first step, set the initial direction
         if (i == 1) {
             currentDirection = newDirection;
             continue;
@@ -186,25 +195,8 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
         }
     }
     
-    if (waypoints.back() != path.back()) { //include the end point if its not already included
+    if (waypoints.back() != path.back()) { // Include the exit point if it's not already included
         waypoints.push_back(path.back());
-    }
-
-    // === Add extended point before the start ===
-    if (path.size() >= 2) {
-        int dx = path[1].first - path[0].first;
-        int dy = path[1].second - path[0].second;
-        std::pair<int, int> extra_start = {path[0].first - dx, path[0].second - dy};
-        waypoints.insert(waypoints.begin(), extra_start);
-    }
-
-    // === Add extended point after the end ===
-    if (path.size() >= 2) {
-        int n = path.size();
-        int dx = path[n-1].first - path[n-2].first;
-        int dy = path[n-1].second - path[n-2].second;
-        std::pair<int, int> extra_end = {path[n-1].first + dx, path[n-1].second + dy};
-        waypoints.push_back(extra_end);
     }
 
     double angle_rad = rotation_ * M_PI / 180.0; // Convert degrees to radians
@@ -217,18 +209,18 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
     pose.orientation.z = 0.0;
     pose.orientation.w = 0.0;
 
-    for (auto& point : waypoints) { // modify the waypoints by the real world scale and convert the int values to doubles
+    for (auto& point : waypoints) { // Modify the waypoints by the real world scale and convert the int values to doubles
         double y = static_cast<double>(point.first);
         double x = static_cast<double>(point.second);
-        // The negative is nessasry to offset inverse nature of the maze.
-        // left top of the maze is (0, 0), so to stop going down one being y = 1, which would not work on the real robot, we flip the sign
+        // The negative is necessary to offset inverse nature of the maze.
+        // Left top of the maze is (0, 0), so to stop going down one being y = 1, which would not work on the real robot, we flip the sign
         
         // Apply rotation
         double rotated_x = (x * cos(angle_rad) - y * sin(angle_rad));
         double rotated_y = (x * sin(angle_rad) + y * cos(angle_rad));
 
-        double scaled_x = (rotated_x * scale_ ) + world_.first;
-        double scaled_y = (rotated_y * scale_* (-1)) + world_.second;
+        double scaled_x = (rotated_x * scale_) + world_.first;
+        double scaled_y = (rotated_y * scale_ * (-1)) + world_.second;
                 
         pose.position.x = scaled_x;
         pose.position.y = scaled_y;
@@ -236,12 +228,11 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
         converted_waypoints.push_back(pose);
     }
 
-
     return converted_waypoints;
 }
 
 void maze_solver::scaleSet(const double& scale){
-    if (scale > 0){ // otherwise default scale is used
+    if (scale > 0){ // Otherwise default scale is used
         scale_ = scale;
     }
 }
@@ -269,7 +260,7 @@ void maze_solver::printSolution(const std::vector<std::pair<int, int>>& path) co
     
     // Mark the path with '*'
     for (const auto& pos : path) {
-        // Don't overwrite start and end
+        // Don't overwrite start and exits
         if (solutionMaze[pos.first][pos.second] != 'S' && 
             solutionMaze[pos.first][pos.second] != 'E') {
             solutionMaze[pos.first][pos.second] = '*';
@@ -277,12 +268,18 @@ void maze_solver::printSolution(const std::vector<std::pair<int, int>>& path) co
     }
     
     // Print the solution
-    std::cout << "Solution:" << std::endl;
+    std::cout << "Solution (path to closest exit):" << std::endl;
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             std::cout << solutionMaze[i][j];
         }
         std::cout << std::endl;
+    }
+    
+    // Print information about the chosen exit
+    if (!exits.empty() && !path.empty()) {
+        std::cout << "\nChosen exit at position: (" << closest_exit.first << ", " << closest_exit.second << ")" << std::endl;
+        std::cout << "Path length to this exit: " << path.size() - 1 << " steps" << std::endl;
     }
 }
 
@@ -300,5 +297,4 @@ void maze_solver::printWaypoints(const std::vector<geometry_msgs::Pose>& waypoin
                           1.0 - 2.0 * (pose.orientation.y * pose.orientation.y + pose.orientation.z * pose.orientation.z));
         std::cout << "  Yaw: " << yaw * 180.0 / M_PI << " degrees" << std::endl;
     }
-
 }
