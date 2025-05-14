@@ -1,26 +1,7 @@
-/**
- * @file maze_solver.cpp
- * @brief Implementation of the maze_solver class for solving and planning paths through mazes
- * 
- * This file contains the implementation of the maze_solver class which solves
- * mazes using breadth-first search and generates waypoints for robot navigation.
- * 
- * @author Original author
- * @date May 2025
- */
-
 #include "maze_solver.h"
 #include <iostream>
 #include <algorithm> 
 
-/**
- * @brief Plans a path through the maze and generates waypoints
- * 
- * Main function that solves the maze and converts the solution path
- * into a series of waypoints for robot navigation.
- * 
- * @return std::vector<geometry_msgs::Pose> Vector of waypoints for robot navigation
- */
 std::vector<geometry_msgs::Pose> maze_solver::pathPlaner(){
     // Solve the maze
     auto path = solve();
@@ -37,16 +18,9 @@ std::vector<geometry_msgs::Pose> maze_solver::pathPlaner(){
     return waypoints;
 }
 
-/**
- * @brief Constructor for the maze_solver class
- * 
- * Initializes the maze_solver with a string representation of the maze.
- * Sets up the maze grid and identifies start and end points.
- * 
- * @param mazeStr String representation of the maze
- */
+
 maze_solver::maze_solver(const std::vector<std::string>& mazeStr) {
-    // default settings for scale and world coord
+    // defualt settings for scale and world coord
     world_ = {0, 0};
     scale_ = 1;
     rotation_ = 0;
@@ -59,7 +33,7 @@ maze_solver::maze_solver(const std::vector<std::string>& mazeStr) {
     // Create an empty maze grid based on the string ascii representation size
     maze.resize(rows, std::vector<char>(cols));
     
-    // Fills the empty maze grid with characters. Effectively converts the incoming string maze to a char maze. Also maps out the start and end points
+    // Fills the empty maze grid with characters. Effectivly converts the incoming string maze to a char maze. Also maps out the start and end points
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             maze[i][j] = mazeStr[i][j];
@@ -76,15 +50,6 @@ maze_solver::maze_solver(const std::vector<std::string>& mazeStr) {
     }
 }
 
-/**
- * @brief Checks if a position in the maze is valid for traversal
- * 
- * Validates if a given position is within maze bounds and is not a wall.
- * 
- * @param x Row index in the maze grid
- * @param y Column index in the maze grid
- * @return bool True if the position is valid, false otherwise
- */
 bool maze_solver::isValid(int x, int y) const {
     // Check if position is within the maze bounds
     if (x < 0 || x >= rows || y < 0 || y >= cols) {
@@ -95,14 +60,6 @@ bool maze_solver::isValid(int x, int y) const {
     return maze[x][y] != '#';
 }
 
-/**
- * @brief Solves the maze using Breadth-First Search algorithm
- * 
- * Implements the BFS algorithm to find the shortest path from start
- * to end in the maze. Returns the complete path as a series of coordinates.
- * 
- * @return std::vector<std::pair<int, int>> Vector of coordinates representing the path through the maze
- */
 std::vector<std::pair<int, int>> maze_solver::solve() {
     // Queue for BFS, stores cells to be explored next
     std::queue<std::pair<int, int>> q;
@@ -111,7 +68,7 @@ std::vector<std::pair<int, int>> maze_solver::solve() {
     std::vector<std::vector<bool>> visited(rows, std::vector<bool>(cols, false));
     
     // Parent array to reconstruct the path, creates a row x col array of pairs set to (-1,-1). When we move to a new tile in the maze,
-    // the corresponding point in the parent array is set to whatever the last coordinate was. This helps reconstruct our path later.
+    // the corisponding point in the parent array is set to whatever the last coordinate was. This helps reconstuct our path later.
     std::vector<std::vector<std::pair<int, int>>> parent(rows, std::vector<std::pair<int, int>>(cols, {-1, -1}));
     
     // Start BFS from the start position
@@ -122,8 +79,8 @@ std::vector<std::pair<int, int>> maze_solver::solve() {
     
     // BFS
     while (!q.empty() && !foundPath) {
-        auto current = q.front(); // Set the current cell being processed as the one in the front of the queue; the order of discovery
-        q.pop(); // remove that same value as we are currently processing it
+        auto current = q.front(); // Set the current cell being procesed as the one in the front of the queue; the order of discovery
+        q.pop(); // remove that same value was we are currently proccesing it
         
         int x = current.first;
         int y = current.second;
@@ -134,14 +91,14 @@ std::vector<std::pair<int, int>> maze_solver::solve() {
             break; // break while loop if true
         }
         
-        // Explore all 4 adjacent grids to the current one being processed by applying the dx dy modifiers to the current xy
+        // Explore all 4 ajacent grids to the current one being proccesed by applying the dx dy modifiers to the current xy
         for (int i = 0; i < 4; i++) {
             int newX = x + dx[i];
             int newY = y + dy[i];
             
             // If valid and not visited
             if (isValid(newX, newY) && !visited[newX][newY]) {
-                q.push({newX, newY}); // Push that point into the queue to be processed next
+                q.push({newX, newY}); // Push that point into the queue to be proccesed next
                 visited[newX][newY] = true; // Also mark this new point as visited to avoid revisiting later
                 parent[newX][newY] = {x, y}; // Remember the parent of the new point so we can determine the path later
             }
@@ -157,26 +114,16 @@ std::vector<std::pair<int, int>> maze_solver::solve() {
         
         while (current.first != -1 && current.second != -1) { // while parent is not (-1 -1), the start position
             path.push_back(current);
-            current = parent[current.first][current.second]; // set current as the last currents parent and continue to backtrack
+            current = parent[current.first][current.second]; // set current as the last currents perent and continue to backtrack
         }
         
-        // Once we reach the start again at (-1 -1), reverse the path to get from start to end
+        // One we reach the start again at (-1 -1), reverse the path to get from start to end
         std::reverse(path.begin(), path.end());
     }
     
     return path; //return the vector of solution coordinates
 }
 
-/**
- * @brief Generates waypoints for robot navigation from the maze solution path
- * 
- * Converts the maze grid path into a series of waypoints in robot coordinate space.
- * Applies scaling, rotation, and offset transformations to align with the physical world.
- * Only includes waypoints at corners to minimize the number of points.
- * 
- * @param path Vector of grid coordinates representing the maze solution path
- * @return std::vector<geometry_msgs::Pose> Vector of waypoints for robot navigation
- */
 std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vector<std::pair<int, int>>& path) const {
     if (path.empty()||path.size() == 1) {
         std::cout << "Invalid maze (no usable waypoints could be created)" << std::endl;
@@ -188,9 +135,37 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
 
     waypoints.push_back(path[0]); // include the start point
     
+    // if (path.size() == 1) { // If the path has only one point, return just that (after conversion to double and applying scale mods)
+
+    //     double angle_rad = rotation_ * M_PI / 180.0; 
+
+    //     double x = static_cast<double>(waypoints[0].first);
+    //     double y = static_cast<double>(waypoints[0].second);
+
+    //     double rotated_x = (x * cos(angle_rad) - y * sin(angle_rad));
+    //     double rotated_y = (x * sin(angle_rad) + y * cos(angle_rad));
+
+    //     double scaled_x = (rotated_x * scale_ * (-1)) + world_.first;
+    //     double scaled_y = (rotated_y * scale_) + world_.second;
+
+    //     geometry_msgs::Pose pose;
+    //     pose.position.x = scaled_x;
+    //     pose.position.y = scaled_y;
+    //     pose.position.z = depth_; 
+        
+    //     // Set orientation as identity quaternion (no rotation)
+    //     pose.orientation.x = 1.0;
+    //     pose.orientation.y = 0.0;
+    //     pose.orientation.z = 0.0;
+    //     pose.orientation.w = 0.0;
+        
+    //     converted_waypoints.push_back(pose);
+    //     return converted_waypoints;
+    // }
+    
     int currentDirection = 0; // Direction of movement (0 = undefined, 1 = horizontal, 2 = vertical)
     
-    for (int i = 1; i < path.size(); i++) {// Check to see if the path is currently moving horizontally or vertically
+    for (int i = 1; i < path.size(); i++) {// Check to see if the path is currently moving horizontaly or verticaly
         int dx = path[i].first - path[i-1].first;
         int dy = path[i].second - path[i-1].second;
         
@@ -215,6 +190,23 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
         waypoints.push_back(path.back());
     }
 
+    // // === Add extended point before the start ===
+    // if (path.size() >= 2) {
+    //     int dx = path[1].first - path[0].first;
+    //     int dy = path[1].second - path[0].second;
+    //     std::pair<int, int> extra_start = {path[0].first - dx, path[0].second - dy};
+    //     waypoints.insert(waypoints.begin(), extra_start);
+    // }
+
+    // // === Add extended point after the end ===
+    // if (path.size() >= 2) {
+    //     int n = path.size();
+    //     int dx = path[n-1].first - path[n-2].first;
+    //     int dy = path[n-1].second - path[n-2].second;
+    //     std::pair<int, int> extra_end = {path[n-1].first + dx, path[n-1].second + dy};
+    //     waypoints.push_back(extra_end);
+    // }
+
     double angle_rad = rotation_ * M_PI / 180.0; // Convert degrees to radians
 
     geometry_msgs::Pose pose;
@@ -228,7 +220,7 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
     for (auto& point : waypoints) { // modify the waypoints by the real world scale and convert the int values to doubles
         double y = static_cast<double>(point.first);
         double x = static_cast<double>(point.second);
-        // The negative is necessary to offset inverse nature of the maze.
+        // The negative is nessasry to offset inverse nature of the maze.
         // left top of the maze is (0, 0), so to stop going down one being y = 1, which would not work on the real robot, we flip the sign
         
         // Apply rotation
@@ -244,66 +236,28 @@ std::vector<geometry_msgs::Pose> maze_solver::generateWaypoints(const std::vecto
         converted_waypoints.push_back(pose);
     }
 
+
     return converted_waypoints;
 }
 
-/**
- * @brief Sets the scale factor for waypoint transformation
- * 
- * Sets the scale factor used to convert from maze grid coordinates
- * to physical world coordinates.
- * 
- * @param scale Scale factor for coordinate transformation
- */
 void maze_solver::scaleSet(const double& scale){
     if (scale > 0){ // otherwise default scale is used
         scale_ = scale;
     }
 }
 
-/**
- * @brief Sets the world origin coordinates for waypoint transformation
- * 
- * Sets the world coordinates of the top-left point of the maze grid.
- * Used as an offset when transforming maze coordinates to world coordinates.
- * 
- * @param world Pair of (x,y) coordinates representing the world origin
- */
 void maze_solver::worldSet(std::pair<double, double>& world){
     world_ = world;
 }
 
-/**
- * @brief Sets the rotation angle for waypoint transformation
- * 
- * Sets the rotation angle in degrees for transforming maze grid coordinates
- * to physical world coordinates.
- * 
- * @param rotation Rotation angle in degrees (clockwise)
- */
 void maze_solver::rotationSet(const double& rotation){
     rotation_ = rotation;
 }
 
-/**
- * @brief Sets the depth (z-coordinate) for waypoints
- * 
- * Sets the z-coordinate value used for all generated waypoints.
- * 
- * @param depth Z-coordinate value for all waypoints
- */
 void maze_solver::depthSet(const double& depth){
     depth_ = depth;
 }
 
-/**
- * @brief Prints the maze solution for debugging
- * 
- * Creates a visual representation of the maze solution and prints it
- * to the console, marking the path with '*' characters.
- * 
- * @param path Vector of coordinates representing the solution path
- */
 void maze_solver::printSolution(const std::vector<std::pair<int, int>>& path) const {
     if (path.empty()) {
         std::cout << "No solution found!" << std::endl;
@@ -332,14 +286,6 @@ void maze_solver::printSolution(const std::vector<std::pair<int, int>>& path) co
     }
 }
 
-/**
- * @brief Prints the generated waypoints for debugging
- * 
- * Prints the list of generated waypoints to the console, including
- * position and orientation information for each point.
- * 
- * @param waypoints Vector of waypoints for robot navigation
- */
 void maze_solver::printWaypoints(const std::vector<geometry_msgs::Pose>& waypoints) const {
     std::cout << "\nWaypoints for robot navigation:" << std::endl;
     std::cout << "--------------------------------" << std::endl;
@@ -354,4 +300,5 @@ void maze_solver::printWaypoints(const std::vector<geometry_msgs::Pose>& waypoin
                           1.0 - 2.0 * (pose.orientation.y * pose.orientation.y + pose.orientation.z * pose.orientation.z));
         std::cout << "  Yaw: " << yaw * 180.0 / M_PI << " degrees" << std::endl;
     }
+
 }
