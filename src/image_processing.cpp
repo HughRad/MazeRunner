@@ -33,6 +33,11 @@ std::vector<std::string> ImageProcessor::processMaze(const std::string& imagePat
                      cv::Point(wall[2], wall[3]), cv::Scalar(0, 0, 255), 2);
         }
         debugInfo->walls = walls;
+
+        // Display debug visualisations
+        //cv::imshow("Input Image", debugInfo->image);
+        //cv::imshow("Cropped Binary Image", debugInfo->binaryImage);
+        cv::imshow("Maze Walls", debugInfo->wallsImage);
     }
 
     // Generate the maze structure
@@ -95,13 +100,16 @@ cv::Mat ImageProcessor::cropToMazeBoundaries(const cv::Mat& image) {
 }
 
 cv::Mat ImageProcessor::preprocessImage(const cv::Mat& croppedImage) {
-    cv::Mat gray, blurred, binary;
+    cv::Mat resizedImage, gray, blurred, binary;
+
+    // Resize image to a fixed size (optional)
+    cv::resize(croppedImage, resizedImage, cv::Size(croppedImage.cols * 2.0, croppedImage.rows * 2.0), 0, 0, cv::INTER_LINEAR);
 
     // Convert to grayscale
-    cv::cvtColor(croppedImage, gray, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(resizedImage, gray, cv::COLOR_BGR2GRAY);
 
     // Reduce noise (blur) using a Gaussian filter (larger kernel size = more blur)
-    cv::GaussianBlur(gray, blurred, cv::Size(23, 23), 0);
+    cv::GaussianBlur(gray, blurred, cv::Size(17, 17), 0);
 
     // Convert grayscale image to binary (white for walls/black for paths)
     cv::adaptiveThreshold(blurred, binary, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 9, 2);
@@ -112,7 +120,7 @@ std::vector<cv::Vec4i> ImageProcessor::detectMazeWalls(const cv::Mat& binaryImag
     std::vector<cv::Vec4i> lines;
 
     // Use Hough Transform to detect lines in the binary image
-    cv::HoughLinesP(binaryImage, lines, 1, CV_PI / 180, 20, 20, 15);
+    cv::HoughLinesP(binaryImage, lines, 1, CV_PI / 180 * 90, 10, 5, 10);
 
     return lines;
 }
