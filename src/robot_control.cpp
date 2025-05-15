@@ -1,31 +1,36 @@
-
 void mazeCornerCallback(const geometry_msgs::Point::ConstPtr& msg) {
     corner_waypoint_ = *msg;
     
-    // First offset: 9mm toward base, 8.5mm to the right
+    // Define the radius of the orbit
     double offsetX = -0.009;  // 9mm toward base (negative X)
     double offsetY = -0.0085; // 8.5mm to the right (negative Y)
     
-    // Get rotation in radians for rotation matrix calculation
+    // Calculate the radius of this orbit
+    double radius = sqrt(offsetX*offsetX + offsetY*offsetY);
+    
+    // Calculate the base angle from these offset values
+    double baseAngle = atan2(offsetY, offsetX);
+    
+    // Get rotation in radians for orbit calculation
     double rotationRad = latest_rotation_ * M_PI / 180.0;
     
-    // Apply rotation to the offset
-    double rotatedOffsetX = offsetX * cos(rotationRad) - offsetY * sin(rotationRad);
-    double rotatedOffsetY = offsetX * sin(rotationRad) + offsetY * cos(rotationRad);
+    // Apply rotation to determine position in the orbit
+    double orbitAngle = baseAngle - rotationRad;
     
-    // Apply the rotated offset
-    corner_waypoint_.x += rotatedOffsetX;
-    corner_waypoint_.y += rotatedOffsetY;
+    // Calculate the new offset position 
+    double orbitalOffsetX = radius * cos(orbitAngle);
+    double orbitalOffsetY = radius * sin(orbitAngle);
     
-    // Now apply the remaining offset to reach the same total as before
-    // Original total was: x += 0.04, y += 0.024
-    corner_waypoint_.x += (0.04 - rotatedOffsetX);
-    corner_waypoint_.y += (0.024 - rotatedOffsetY);
+    // Apply the orbital offset
+    corner_waypoint_.x += orbitalOffsetX;
+    corner_waypoint_.y += orbitalOffsetY;
+    
+    // Apply the second fixed offset directly
+    corner_waypoint_.x += 0.04;
+    corner_waypoint_.y += 0.024;
     
     maze_corner_received_ = true;
 }
-
-
 
 
 
