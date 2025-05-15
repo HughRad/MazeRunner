@@ -1,3 +1,35 @@
+
+void mazeCornerCallback(const geometry_msgs::Point::ConstPtr& msg) {
+    corner_waypoint_ = *msg;
+    
+    // First offset: 9mm toward base, 8.5mm to the right
+    double offsetX = -0.009;  // 9mm toward base (negative X)
+    double offsetY = -0.0085; // 8.5mm to the right (negative Y)
+    
+    // Get rotation in radians for rotation matrix calculation
+    double rotationRad = latest_rotation_ * M_PI / 180.0;
+    
+    // Apply rotation to the offset
+    double rotatedOffsetX = offsetX * cos(rotationRad) - offsetY * sin(rotationRad);
+    double rotatedOffsetY = offsetX * sin(rotationRad) + offsetY * cos(rotationRad);
+    
+    // Apply the rotated offset
+    corner_waypoint_.x += rotatedOffsetX;
+    corner_waypoint_.y += rotatedOffsetY;
+    
+    // Now apply the remaining offset to reach the same total as before
+    // Original total was: x += 0.04, y += 0.024
+    corner_waypoint_.x += (0.04 - rotatedOffsetX);
+    corner_waypoint_.y += (0.024 - rotatedOffsetY);
+    
+    maze_corner_received_ = true;
+}
+
+
+
+
+
+
 #include <ros/ros.h>
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <geometry_msgs/Pose.h>
