@@ -6,7 +6,7 @@
  * captured by a camera. It includes functions for detecting maze walls, paths,
  * and start/end points.
  * 
- * @author Original author
+ * @author Ryan Thomas
  * @date May 2025
  */
 
@@ -28,19 +28,6 @@
  */
 class ImageProcessor {
 public:
-    /**
-     * @struct DebugInfo
-     * @brief Structure to hold debugging information
-     * 
-     * Contains various images and data used during the maze processing
-     * for visualization and debugging purposes.
-     */
-    struct DebugInfo {
-        cv::Mat image;         ///< Original input image
-        cv::Mat binaryImage;   ///< Binary processed image
-        cv::Mat wallsImage;    ///< Image with detected walls highlighted
-        std::vector<cv::Vec4i> walls;  ///< Detected wall segments
-    };
 
     /**
      * @brief Default constructor for the ImageProcessor class
@@ -51,10 +38,9 @@ public:
      * @brief Function that identifies the maze structure from an image
      * 
      * @param image The input image containing the maze
-     * @param debugInfo Optional pointer to store debug information and images
      * @return std::vector<std::string> 2D array representation of the maze
      */
-    std::vector<std::string> processMaze(const cv::Mat& image, DebugInfo* debugInfo = nullptr);
+    std::vector<std::string> processMaze(const cv::Mat& image);
 
 private:
     /**
@@ -80,27 +66,15 @@ private:
     cv::Mat preprocessImage(const cv::Mat& croppedImage);
 
     /**
-     * @brief Function that detects the walls of the maze
+     * @brief Function that generates a grid array from the input image
      * 
-     * Uses Hough transform to detect line segments in the binary image
-     * that represent the walls of the maze.
-     * 
-     * @param binaryImage The binary image of the maze
-     * @return std::vector<cv::Vec4i> A vector of line segments representing maze walls
-     */
-    std::vector<cv::Vec4i> detectMazeWalls(const cv::Mat& binaryImage);
-
-    /**
-     * @brief Function that generates a grid array from the wall segments
-     * 
-     * Converts the detected wall segments into a grid representation of the maze,
+     * Converts the binary image into a grid representation of the maze,
      * using a fixed size grid. Also identifies potential path cells.
      * 
-     * @param walls The detected wall segments of the maze
      * @param binaryImage The binary image of the maze
      * @return std::vector<std::string> A vector of strings representing the maze structure
      */
-    std::vector<std::string> generateMazeArray(const std::vector<cv::Vec4i>& walls, const cv::Mat& binaryImage);
+    std::vector<std::string> generateMazeArray(const cv::Mat& binaryImage);
 
     /**
      * @brief Detects start and end points in the maze
