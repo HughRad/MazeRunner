@@ -12,16 +12,6 @@
  */
 class ImageProcessor {
 public:
-    /*!
-     * @struct DebugInfo
-     * @brief Structure to hold debugging information
-     */
-    struct DebugInfo {
-        cv::Mat image;
-        cv::Mat binaryImage;
-        cv::Mat wallsImage;
-        std::vector<cv::Vec4i> walls;
-    };
 
     ImageProcessor();
 
@@ -30,7 +20,7 @@ public:
      * @param imagePath path to the image file
      * @return a vector of strings representing the maze structure
      */
-    std::vector<std::string> processMaze(const std::string &imagePath, DebugInfo* debugInfo = nullptr);
+    std::vector<std::string> processMaze(const std::string &imagePath);
 
     private:
     /**
@@ -48,19 +38,11 @@ public:
     cv::Mat preprocessImage(const cv::Mat& croppedImage);
 
     /**
-     * @brief Function that detects the walls of the maze
-     * @param binaryImage the binary image of the maze
-     * @return a vector of line segments representing maze walls
-     */
-    std::vector<cv::Vec4i> detectMazeWalls(const cv::Mat& binaryImage);
-
-    /**
-     * @brief Function that generates a grid array from the wall segments
-     * @param walls the detected wall segments of the maze
+     * @brief Function that generates a grid array from the preprocessed input image
      * @param binaryImage the binary image of the maze
      * @return a vector of strings representing the maze structure
      */
-    std::vector<std::string> generateMazeArray(const std::vector<cv::Vec4i>& walls, const cv::Mat& binaryImage);
+    std::vector<std::string> generateMazeArray(const cv::Mat& binaryImage);
 
     /**
      * @brief Detects start and end points in the maze
