@@ -478,8 +478,8 @@
         corner_waypoint_.y += orbitalOffsetY;
         
         // Apply the second fixed offset directly
-        corner_waypoint_.x += 0.04 - offsetX;
-        corner_waypoint_.y += 0.024 - offsetY;
+        corner_waypoint_.x += 0.045;
+        corner_waypoint_.y += 0.017;
         
         maze_corner_received_ = true;
     }
@@ -1094,7 +1094,6 @@
 
 
  };
- 
  /**
  * @brief Main function for the drawing robot node
  * 
@@ -1119,6 +1118,17 @@ int main(int argc, char** argv)
     ros::Publisher gui_log_pub = nh.advertise<std_msgs::String>("/maze_gui/log", 10);
     ros::Duration(2).sleep();
 
+    // Initialize stop parameter
+    nh.setParam("/robot_stop", false);
+
+    // Function to publish log messages to the GUI
+    auto publish_gui_log = [&gui_log_pub](const std::string& message) {
+        std_msgs::String msg;
+        msg.data = message;
+        gui_log_pub.publish(msg);
+        ROS_INFO("%s", message.c_str());
+    };
+
     // Now use GUI_LOG
     ROS_INFO("Node initialized and ready.");
 
@@ -1128,7 +1138,7 @@ int main(int argc, char** argv)
     while (ros::ok())
     {
         // Wait for the GUI to set /robot_ready to true
-        ROS_INFO("Waiting for GUI to signal robot start via /robot_ready param...");
+        publish_gui_log("Waiting for next start signal...");
         ros::Rate rate(2);  // 2 Hz check
         bool ready = false;
 
@@ -1137,7 +1147,7 @@ int main(int argc, char** argv)
             nh.getParam("/robot_ready", ready);
             if (!count)
             {
-                GUI_LOG("Ready to Start Maze Runner");
+                publish_gui_log("Ready to Start Maze Runner");
                 count=true;
             }
             if (ready) break;
@@ -1146,8 +1156,11 @@ int main(int argc, char** argv)
         
         // Reset flag so it must be pressed again if loop is true
         nh.setParam("/robot_ready", false);
+        
+        // Also reset stop flag
+        nh.setParam("/robot_stop", false);
 
-        GUI_LOG("Starting Maze Runner...");
+        publish_gui_log("Starting Maze Runner...");
 
         try {
             DrawingRobot robot;
@@ -1219,7 +1232,7 @@ int main(int argc, char** argv)
             ).toImageMsg();
             
             ros::Publisher maze_image_pub_ = nh.advertise<sensor_msgs::Image>("/maze/visualisation", 1);
-            // maze_image_pub_.publish(&display);
+            maze_image_pub_.publish(img_msg);
 
             maze_solver solver(maze);
             geometry_msgs::Point maze_corner = robot.corner_waypoint_;
@@ -1235,32 +1248,106 @@ int main(int argc, char** argv)
 
             std::vector<geometry_msgs::Pose> maze_path = solver.pathPlaner();
 
+            // Function to check if stop was requested
+            auto check_stop_requested = [&nh, &publish_gui_log, &robot, &initial_joint_positions]() {
+                bool stop_requested = false;
+                nh.getParam("/robot_stop", stop_requested);
+                
+                if (stop_requested) {
+                    publish_gui_log("Stop requested! Returning to home position...");
+                    ROS_INFO("Stop requested, returning to home position");
+                    
+                    // Return to home position
+                    bool return_success = robot.initializeToPosition(initial_joint_positions);
+                    if (!return_success) {
+                        ROS_WARN("Return to home failed. Attempting recovery...");
+                        robot.recoverFromJointStateError();
+                        return_success = robot.initializeToPosition(initial_joint_positions);
+                    }
+                    
+                    if (return_success) {
+                        publish_gui_log("Robot returned to home position");
+                    } else {
+                        publish_gui_log("Failed to return robot to home position");
+                    }
+                    
+                    // Reset the stop flag
+                    nh.setParam("/robot_stop", false);
+                    return true;
+                }
+                return false;
+            };
+
             ROS_INFO("Executing Cartesian path...");
             ros::Duration(1.0).sleep();
+            
+            // Check for stop request before executing path
+            if (check_stop_requested()) {
+                continue;  // Skip to next iteration if stop was requested
+            }
+            
             bool path_success = robot.executeCartesianPath(maze_path);
+            
+            // Check for stop request after path execution
+            if (check_stop_requested()) {
+                continue;  // Skip to next iteration if stop was requested
+            }
 
             ROS_INFO("Returning to initial joint configuration...");
             bool return_success = robot.initializeToPosition(initial_joint_positions);
             if (!return_success) {
                 ROS_WARN("Return failed. Attempting recovery...");
                 robot.recoverFromJointStateError();
-                robot.initializeToPosition(initial_joint_positions);
+                return_success = robot.initializeToPosition(initial_joint_positions);
             }
-
-            GUI_LOG("Maze execution completed successfully.");
+            
+            if (return_success) {
+                publish_gui_log("Maze execution completed successfully.");
+            } else {
+                publish_gui_log("Warning: Failed to return to home position after maze execution.");
+            }
         }
         catch (const std::exception& e) {
             ROS_ERROR("Exception in main: %s", e.what());
+            publish_gui_log(std::string("Error: ") + e.what());
+            
+            // Try to reset to home position even after error
+            try {
+                DrawingRobot robot;
+                std::vector<double> initial_joint_positions = {0.0, -1.452, 0.623, -0.748, -1.571, 0.0};
+                ros::Duration(2.0).sleep();
+                bool return_success = robot.initializeToPosition(initial_joint_positions);
+                if (return_success) {
+                    publish_gui_log("Robot returned to home position after error");
+                }
+            } catch (...) {
+                publish_gui_log("Failed to return robot to home position after error");
+            }
         }
         catch (...) {
             ROS_ERROR("Unknown exception in main");
+            publish_gui_log("Error: Unknown exception occurred");
+            
+            // Try to reset to home position even after error
+            try {
+                DrawingRobot robot;
+                std::vector<double> initial_joint_positions = {0.0, -1.452, 0.623, -0.748, -1.571, 0.0};
+                ros::Duration(2.0).sleep();
+                bool return_success = robot.initializeToPosition(initial_joint_positions);
+                if (return_success) {
+                    publish_gui_log("Robot returned to home position after error");
+                }
+            } catch (...) {
+                publish_gui_log("Failed to return robot to home position after error");
+            }
         }
 
         if (!loop) {
             break;  // Exit after one loop
         }
 
-        GUI_LOG("Waiting for next start signal...");
+        // Don't need to explicitly say waiting for next start signal anymore
+        // as we rely on the completion message to reset the GUI
     }
 
     ros::shutdown();
