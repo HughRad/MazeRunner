@@ -433,7 +433,7 @@ gennodejs_DIR:PATH=/opt/ros/noetic/share/gennodejs/cmake
 genpy_DIR:PATH=/opt/ros/noetic/share/genpy/cmake
 
 //The directory containing a CMake configuration file for geometric_shapes.
-geometric_shapes_DIR:PATH=/opt/ros/noetic/share/geometric_shapes/cmake
+geometric_shapes_DIR:PATH=/home/corso/ws_moveit/devel/share/geometric_shapes/cmake
 
 //The directory containing a CMake configuration file for geometry_msgs.
 geometry_msgs_DIR:PATH=/opt/ros/noetic/share/geometry_msgs/cmake
@@ -506,34 +506,34 @@ message_generation_DIR:PATH=/opt/ros/noetic/share/message_generation/cmake
 message_runtime_DIR:PATH=/opt/ros/noetic/share/message_runtime/cmake
 
 //The directory containing a CMake configuration file for moveit_commander.
-moveit_commander_DIR:PATH=/opt/ros/noetic/share/moveit_commander/cmake
+moveit_commander_DIR:PATH=/home/corso/ws_moveit/devel/share/moveit_commander/cmake
 
 //The directory containing a CMake configuration file for moveit_core.
-moveit_core_DIR:PATH=/opt/ros/noetic/share/moveit_core/cmake
+moveit_core_DIR:PATH=/home/corso/ws_moveit/devel/share/moveit_core/cmake
 
 //The directory containing a CMake configuration file for moveit_msgs.
-moveit_msgs_DIR:PATH=/opt/ros/noetic/share/moveit_msgs/cmake
+moveit_msgs_DIR:PATH=/home/corso/ws_moveit/devel/share/moveit_msgs/cmake
 
 //The directory containing a CMake configuration file for moveit_ros_manipulation.
-moveit_ros_manipulation_DIR:PATH=/opt/ros/noetic/share/moveit_ros_manipulation/cmake
+moveit_ros_manipulation_DIR:PATH=/home/corso/ws_moveit/devel/share/moveit_ros_manipulation/cmake
 
 //The directory containing a CMake configuration file for moveit_ros_move_group.
-moveit_ros_move_group_DIR:PATH=/opt/ros/noetic/share/moveit_ros_move_group/cmake
+moveit_ros_move_group_DIR:PATH=/home/corso/ws_moveit/devel/share/moveit_ros_move_group/cmake
 
 //The directory containing a CMake configuration file for moveit_ros_occupancy_map_monitor.
-moveit_ros_occupancy_map_monitor_DIR:PATH=/opt/ros/noetic/share/moveit_ros_occupancy_map_monitor/cmake
+moveit_ros_occupancy_map_monitor_DIR:PATH=/home/corso/ws_moveit/devel/share/moveit_ros_occupancy_map_monitor/cmake
 
 //The directory containing a CMake configuration file for moveit_ros_planning.
-moveit_ros_planning_DIR:PATH=/opt/ros/noetic/share/moveit_ros_planning/cmake
+moveit_ros_planning_DIR:PATH=/home/corso/ws_moveit/devel/share/moveit_ros_planning/cmake
 
 //The directory containing a CMake configuration file for moveit_ros_planning_interface.
-moveit_ros_planning_interface_DIR:PATH=/opt/ros/noetic/share/moveit_ros_planning_interface/cmake
+moveit_ros_planning_interface_DIR:PATH=/home/corso/ws_moveit/devel/share/moveit_ros_planning_interface/cmake
 
 //The directory containing a CMake configuration file for moveit_ros_warehouse.
-moveit_ros_warehouse_DIR:PATH=/opt/ros/noetic/share/moveit_ros_warehouse/cmake
+moveit_ros_warehouse_DIR:PATH=/home/corso/ws_moveit/devel/share/moveit_ros_warehouse/cmake
 
 //The directory containing a CMake configuration file for moveit_servo.
-moveit_servo_DIR:PATH=/opt/ros/noetic/share/moveit_servo/cmake
+moveit_servo_DIR:PATH=/home/corso/ws_moveit/devel/share/moveit_servo/cmake
 
 //The directory containing a CMake configuration file for object_recognition_msgs.
 object_recognition_msgs_DIR:PATH=/opt/ros/noetic/share/object_recognition_msgs/cmake
@@ -626,7 +626,7 @@ tf_DIR:PATH=/opt/ros/noetic/share/tf/cmake
 trajectory_msgs_DIR:PATH=/opt/ros/noetic/share/trajectory_msgs/cmake
 
 //The directory containing a CMake configuration file for ur3_moveit_config.
-ur3_moveit_config_DIR:PATH=/opt/ros/noetic/share/ur3_moveit_config/cmake
+ur3_moveit_config_DIR:PATH=/home/corso/ws_moveit/devel/share/ur3_moveit_config/cmake
 
 //The directory containing a CMake configuration file for urdf.
 urdf_DIR:PATH=/opt/ros/noetic/share/urdf/cmake

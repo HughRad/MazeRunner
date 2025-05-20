@@ -155,7 +155,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
      NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/maze_runner")
     file(RPATH_CHANGE
          FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/maze_runner"
-         OLD_RPATH "/home/corso/ws_moveit/src/maze_runner/build/devel/lib:/opt/ros/noetic/lib:/opt/ros/noetic/lib/x86_64-linux-gnu:"
+         OLD_RPATH "/home/corso/ws_moveit/src/maze_runner/build/devel/lib:/home/corso/ws_moveit/devel/.private/moveit_servo/lib:/home/corso/ws_moveit/devel/.private/moveit_ros_planning_interface/lib:/home/corso/ws_moveit/devel/.private/moveit_ros_warehouse/lib:/home/corso/ws_moveit/devel/.private/moveit_ros_manipulation/lib:/home/corso/ws_moveit/devel/.private/moveit_ros_move_group/lib:/home/corso/ws_moveit/devel/.private/moveit_ros_planning/lib:/home/corso/ws_moveit/devel/.private/moveit_ros_occupancy_map_monitor/lib:/home/corso/ws_moveit/devel/.private/moveit_core/lib:/home/corso/ws_moveit/devel/.private/geometric_shapes/lib:/opt/ros/noetic/lib:/opt/ros/noetic/lib/x86_64-linux-gnu:"
          NEW_RPATH "")
     if(CMAKE_INSTALL_DO_STRIP)
       execute_process(COMMAND "/usr/bin/strip" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/maze_runner")
@@ -175,7 +175,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_
      NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/robot_sim")
     file(RPATH_CHANGE
          FILE "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/robot_sim"
-         OLD_RPATH "/home/corso/ws_moveit/src/maze_runner/build/devel/lib:/opt/ros/noetic/lib:/opt/ros/noetic/lib/x86_64-linux-gnu:"
+         OLD_RPATH "/home/corso/ws_moveit/src/maze_runner/build/devel/lib:/home/corso/ws_moveit/devel/.private/moveit_servo/lib:/home/corso/ws_moveit/devel/.private/moveit_ros_planning_interface/lib:/home/corso/ws_moveit/devel/.private/moveit_ros_warehouse/lib:/home/corso/ws_moveit/devel/.private/moveit_ros_manipulation/lib:/home/corso/ws_moveit/devel/.private/moveit_ros_move_group/lib:/home/corso/ws_moveit/devel/.private/moveit_ros_planning/lib:/home/corso/ws_moveit/devel/.private/moveit_ros_occupancy_map_monitor/lib:/home/corso/ws_moveit/devel/.private/moveit_core/lib:/home/corso/ws_moveit/devel/.private/geometric_shapes/lib:/opt/ros/noetic/lib:/opt/ros/noetic/lib/x86_64-linux-gnu:"
          NEW_RPATH "")
     if(CMAKE_INSTALL_DO_STRIP)
       execute_process(COMMAND "/usr/bin/strip" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/maze_runner/robot_sim")
@@ -185,6 +185,10 @@ endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/maze_runner/launch" TYPE FILE FILES "/home/corso/ws_moveit/src/maze_runner/launch/maze_runner.launch")
+endif()
+
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/maze_runner" TYPE PROGRAM FILES "/home/corso/ws_moveit/src/maze_runner/build/catkin_generated/installspace/gui.py")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)

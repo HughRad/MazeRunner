@@ -30,4 +30,8 @@
     <!-- Acceleration scaling factor (0.0-1.0) - reduced for safety on real hardware -->
     <param name="acceleration_scaling" value="0.15"/>
   </node>
+
+<!-- Launch the PyQt GUI with a delay after everything else -->
+<node name="maze_gui" pkg="maze_runner" type="gui.py" output="screen"
+launch-prefix="bash -c 'sleep 8; $0 $@'"/>
 </launch>

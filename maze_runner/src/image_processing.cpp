@@ -3,16 +3,11 @@
 
 ImageProcessor::ImageProcessor() {}
 
-std::vector<std::string> ImageProcessor::processMaze(const cv::Mat& image, DebugInfo* debugInfo) {
-
+std::vector<std::string> ImageProcessor::processMaze(const cv::Mat& image) {
+    // Debug output
     if (image.empty()) {
         std::cerr << "Error: Could not load image." << std::endl;
         return {};
-    }
-
-    // Store original image if debug info requested
-    if (debugInfo) {
-        debugInfo->image = image.clone();
     }
 
     // Crop the image to the maze boundaries
@@ -20,25 +15,9 @@ std::vector<std::string> ImageProcessor::processMaze(const cv::Mat& image, Debug
 
     // Preprocess image
     cv::Mat binaryImage = preprocessImage(croppedImage);
-    
-    // Detect maze walls
-    std::vector<cv::Vec4i> walls = detectMazeWalls(binaryImage);
-
-    // If debug info requested, prepare debug images
-    if (debugInfo) {
-        debugInfo->binaryImage = binaryImage.clone();
-        cv::cvtColor(binaryImage, debugInfo->wallsImage, cv::COLOR_GRAY2BGR);
-        for (const auto& wall : walls) {
-            cv::line(debugInfo->wallsImage, cv::Point(wall[0], wall[1]), 
-                     cv::Point(wall[2], wall[3]), cv::Scalar(0, 0, 255), 2);
-        }
-        debugInfo->walls = walls;
-
-        cv::imshow("Maze Walls", debugInfo->wallsImage);
-    }
 
     // Generate the maze structure
-    return generateMazeArray(walls, binaryImage);
+    return generateMazeArray(binaryImage);
 }
 
 cv::Mat ImageProcessor::cropToMazeBoundaries(const cv::Mat& image) {
@@ -65,7 +44,7 @@ cv::Mat ImageProcessor::cropToMazeBoundaries(const cv::Mat& image) {
     cv::Point2f mazeCenter = marker1Center + mazeDiagonal * 0.5f;
 
     // Calculate maze dimensions based on marker distance
-    float mazeSize = markerDistance * 0.55f;
+    float mazeSize = markerDistance * 0.565f;
     float halfSize = mazeSize * 0.5f;
 
     // Create crop region centered between markers
@@ -97,120 +76,103 @@ cv::Mat ImageProcessor::cropToMazeBoundaries(const cv::Mat& image) {
 }
 
 cv::Mat ImageProcessor::preprocessImage(const cv::Mat& croppedImage) {
-    cv::Mat gray, blurred, binary;
+    cv::Mat resizedImage, gray, blurred, binary;
+
+    // Resize image to a fixed size (optional)
+    cv::resize(croppedImage, resizedImage, cv::Size(croppedImage.cols * 2.0, croppedImage.rows * 2.0), 0, 0, cv::INTER_LINEAR);
 
     // Convert to grayscale
-    cv::cvtColor(croppedImage, gray, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(resizedImage, gray, cv::COLOR_BGR2GRAY);
 
-    // Reduce noise (blur) using a 5x5 Gaussian filter
-    cv::GaussianBlur(gray, blurred, cv::Size(21, 21), 0);
+    // Reduce noise (blur) using a Gaussian filter (larger kernel size = more blur)
+    cv::GaussianBlur(gray, blurred, cv::Size(25, 25), 0);
 
     // Convert grayscale image to binary (white for walls/black for paths)
-    cv::adaptiveThreshold(blurred, binary, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 11, 2);
+    cv::adaptiveThreshold(blurred, binary, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_BINARY_INV, 9, 3);
     return binary;
 }
 
-std::vector<cv::Vec4i> ImageProcessor::detectMazeWalls(const cv::Mat& binaryImage) {
-    std::vector<cv::Vec4i> lines;
-
-    // Use Hough Transform to detect lines in the binary image
-    cv::HoughLinesP(binaryImage, lines, 1, CV_PI / 180, 20, 20, 10);
-
-    return lines;
-}
-
-/*
-std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv::Vec4i>& walls, const cv::Mat& binaryImage) {
-    // Determine grid size based on image dimensions
-    const int GRID_SIZE = 20; // pixels per cell
-    int rows = binaryImage.rows / GRID_SIZE;
-    int cols = binaryImage.cols / GRID_SIZE;
-    
-    std::vector<std::string> maze(rows, std::string(cols, '.'));
-
-    // Create a matrix to store wall density
-    cv::Mat wallDensity = cv::Mat::zeros(rows, cols, CV_32F);
-
-    // Process each wall segment
-    for (const auto& wall : walls) {
-        // Use Bresenham's line algorithm to get all points along the wall
-        cv::LineIterator it(binaryImage, cv::Point(wall[0], wall[1]), 
-                          cv::Point(wall[2], wall[3]), 8);
-        for(int i = 0; i < it.count; i++, ++it) {
-            cv::Point pt = it.pos();
-            int row = pt.y / GRID_SIZE;
-            int col = pt.x / GRID_SIZE;
-            
-            if (row >= 0 && row < rows && col >= 0 && col < cols) {
-                wallDensity.at<float>(row, col) += 1.0f;
-            }
-        }
-    }
-
-    // Convert density to walls using a threshold
-    float threshold = 20.0f; // Adjust this value based on conversion accuracy (lower = more walls)
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            if (wallDensity.at<float>(i, j) > threshold) {
-                maze[i][j] = '#';
-            }
-        }
-    }
-
-    // Debug output
-    std::cout << "Maze dimensions: " << rows << "x" << cols << std::endl;
-    
-    return maze;
-}
-*/
-std::vector<std::string> ImageProcessor::generateMazeArray(const std::vector<cv::Vec4i>& walls, const cv::Mat& binaryImage) {
+std::vector<std::string> ImageProcessor::generateMazeArray(const cv::Mat& binaryImage) {
     const int MAZE_SIZE = 17; // Fixed grid
     std::vector<std::string> maze(MAZE_SIZE, std::string(MAZE_SIZE, '.'));
 
-    // Calculate cell size based on image dimensions
+    // Create debug visualisation image
+    cv::Mat debugOverlay;
+    cv::cvtColor(binaryImage, debugOverlay, cv::COLOR_GRAY2BGR);
+
+    // Calculate cell dimensions
     float cellWidth = static_cast<float>(binaryImage.cols) / MAZE_SIZE;
     float cellHeight = static_cast<float>(binaryImage.rows) / MAZE_SIZE;
-    
-    // Create a matrix to store wall density
-    cv::Mat wallDensity = cv::Mat::zeros(MAZE_SIZE, MAZE_SIZE, CV_32F);
 
-    // Process each wall segment
-    for (const auto& wall : walls) {
-        // Use Bresenham's line algorithm to get all points along the wall
-        cv::LineIterator it(binaryImage, cv::Point(wall[0], wall[1]), 
-                          cv::Point(wall[2], wall[3]), 8);
-        for(int i = 0; i < it.count; i++, ++it) {
-            cv::Point pt = it.pos();
-            // Convert pixel coordinates to grid coordinates
-            int row = static_cast<int>(pt.y / cellHeight);
-            int col = static_cast<int>(pt.x / cellWidth);
-            
-            if (row >= 0 && row < MAZE_SIZE && col >= 0 && col < MAZE_SIZE) {
-                wallDensity.at<float>(row, col) += 1.0f;
-            }
-        }
-    }
-
-    // Convert density to walls using a threshold
-    float threshold = 20.0f; // Adjust this value based on conversion accuracy (lower = more walls)
+    // For each cell in the grid
     for (int i = 0; i < MAZE_SIZE; i++) {
         for (int j = 0; j < MAZE_SIZE; j++) {
-            if (wallDensity.at<float>(i, j) > threshold) {
+            // Calculate cell boundaries
+            int startX = static_cast<int>(j * cellWidth);
+            int startY = static_cast<int>(i * cellHeight);
+            int endX = static_cast<int>((j + 1) * cellWidth);
+            int endY = static_cast<int>((i + 1) * cellHeight);
+
+            // Ensure we don't exceed image boundaries
+            endX = std::min(endX, binaryImage.cols);
+            endY = std::min(endY, binaryImage.rows);
+
+            // Extract the cell region
+            cv::Mat cell = binaryImage(cv::Range(startY, endY), cv::Range(startX, endX));
+
+            // Count white pixels
+            int whitePixels = cv::countNonZero(cell);
+            int totalPixels = cell.rows * cell.cols;
+            float whiteRatio = static_cast<float>(whitePixels) / totalPixels;
+
+            // Draw grid lines
+            cv::rectangle(debugOverlay, cv::Point(startX, startY), 
+                         cv::Point(endX, endY), cv::Scalar(0, 255, 0), 1);
+
+            // Color code cells based on classification
+            cv::Scalar cellColor;
+            if (whiteRatio > 0.1) {
                 maze[i][j] = '#';
+                // Red tint for walls
+                cellColor = cv::Scalar(0, 0, 200);
+            } else {
+                // Green tint for paths
+                cellColor = cv::Scalar(0, 200, 0);
             }
+
+            // Apply semi-transparent overlay
+            cv::Mat roi = debugOverlay(cv::Range(startY, endY), cv::Range(startX, endX));
+            cv::addWeighted(roi, 0.7, cv::Mat(roi.size(), roi.type(), cellColor), 0.3, 0, roi);
+
+            latest_binary_image_ = roi;
+
+            // Add text showing white ratio percentage
+            std::string ratioText = std::to_string(int(whiteRatio * 100)) + "%";
+            cv::putText(debugOverlay, ratioText, 
+                       cv::Point(startX + 5, startY + 20),
+                       cv::FONT_HERSHEY_SIMPLEX, 0.4, 
+                       cv::Scalar(255, 255, 255), 1);
         }
     }
+
+    // Show debug visualisation
+    cv::imshow("Maze Grid Analysis", debugOverlay);
 
     // Detect start and end points
     auto [startFound, endFound] = detectStartEndPoints(maze, MAZE_SIZE);
 
     // Debug output
-    std::cout << "Generated " << MAZE_SIZE << "x" << MAZE_SIZE << " maze:" << std::endl;
     if (!startFound) std::cout << "Warning: No start point found!" << std::endl;
     if (!endFound) std::cout << "Warning: No end point found!" << std::endl;
-    
+
+    // Print maze representation
+    for (const auto &row : maze) {
+        std::cout << row << std::endl;
+    }
+
     return maze;
 }
+
 std::pair<bool, bool> ImageProcessor::detectStartEndPoints(std::vector<std::string>& maze, const int mazeSize) {
     bool startFound = false;
     bool endFound = false;
@@ -250,31 +212,31 @@ std::pair<bool, bool> ImageProcessor::detectStartEndPoints(std::vector<std::stri
 
     // After finding start, check all walls again for any remaining gaps to mark as end
     // Check left wall for end
-    for (int i = 0; i < mazeSize && !endFound; i++) {
+    for (int i = 0; i < mazeSize; i++) {
         if (maze[i][0] == '.' && maze[i][1] == '.') {
             maze[i][0] = 'E';
             endFound = true;
         }
     }
 
-    // Check top wall for end if not found
-    for (int j = 0; j < mazeSize && !endFound; j++) {
+    // Check top wall for end
+    for (int j = 0; j < mazeSize; j++) {
         if (maze[0][j] == '.' && maze[1][j] == '.') {
             maze[0][j] = 'E';
             endFound = true;
         }
     }
 
-    // Check right wall for end if not found
-    for (int i = 0; i < mazeSize && !endFound; i++) {
+    // Check right wall for end
+    for (int i = 0; i < mazeSize; i++) {
         if (maze[i][mazeSize-1] == '.' && maze[i][mazeSize-2] == '.') {
             maze[i][mazeSize-1] = 'E';
             endFound = true;
         }
     }
 
-    // Check bottom wall for end if not found
-    for (int j = 0; j < mazeSize && !endFound; j++) {
+    // Check bottom wall for end
+    for (int j = 0; j < mazeSize; j++) {
         if (maze[mazeSize-1][j] == '.' && maze[mazeSize-2][j] == '.') {
             maze[mazeSize-1][j] = 'E';
             endFound = true;

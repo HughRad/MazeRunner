@@ -5,6 +5,7 @@ project(maze_runner)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
+  rospy
   roscpp
   geometry_msgs
   moveit_commander
@@ -104,5 +105,11 @@ install(TARGETS maze_runner robot_sim
 install(FILES
   launch/maze_runner.launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
+
+# Install Python scripts for gui
+catkin_install_python(PROGRAMS
+  scripts/gui.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

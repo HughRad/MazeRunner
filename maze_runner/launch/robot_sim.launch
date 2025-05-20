@@ -1,30 +1,34 @@
 <launch>
-  <!-- Launch UR3 in Gazebo -->
-  <include file="$(find ur_gazebo)/launch/ur3_bringup.launch"/>
-  
-  <!-- Launch MoveIt for UR3 -->
-  <include file="$(find ur3_moveit_config)/launch/moveit_planning_execution.launch">
-    <arg name="sim" value="true"/>
-  </include>
-  
-    <!-- Launch Aruco tracker -->
-  <include file="$(find aruco_tracker)/launch/aruco_tracker.launch">
-  </include>
+ <!-- Launch UR3 in Gazebo -->
+<include file="$(find ur_gazebo)/launch/ur3_bringup.launch"/>
 
-  <!-- Launch RViz with a custom maze_runner config-->
-  <node name="rviz" pkg="rviz" type="rviz" required="true" 
-        args="-d $(find maze_runner)/config/rviz_config.rviz"/>
+<!-- Launch MoveIt for UR3 -->
+<include file="$(find ur3_moveit_config)/launch/moveit_planning_execution.launch">
+<arg name="sim" value="true"/>
+</include>
 
-    <!-- Launch the robot_sim node after a delay to ensure everything is loaded -->
-    <node name="robot_sim" pkg="maze_runner" type="robot_sim" output="screen"
-          launch-prefix="bash -c 'sleep 10; $0 $@'">
-        <!-- Specify the planning group name for the UR3 arm -->
-        <param name="planning_group" value="ur3"/>
-        <!-- Hover offset in meters -->
-        <param name="hover_offset" value="0.02"/>
-        <!-- Velocity scaling factor (0.0-1.0) -->
-        <param name="velocity_scaling" value="0.2"/>
-        <!-- Acceleration scaling factor (0.0-1.0) -->
-        <param name="acceleration_scaling" value="0.2"/>
-    </node>
+<!-- Launch Aruco tracker -->
+<include file="$(find aruco_tracker)/launch/aruco_tracker.launch">
+</include>
+
+<!-- Launch RViz with a custom maze_runner config-->
+<node name="rviz" pkg="rviz" type="rviz" required="true"
+args="-d $(find maze_runner)/config/rviz_config.rviz"/>
+
+<!-- Launch the robot_sim node after a delay to ensure everything is loaded -->
+<node name="robot_sim" pkg="maze_runner" type="robot_sim" output="screen"
+launch-prefix="bash -c 'sleep 10; $0 $@'">
+  <!-- Specify the planning group name for the UR3 arm -->
+  <param name="planning_group" value="ur3"/>
+  <!-- Hover offset in meters -->
+  <param name="hover_offset" value="0.02"/>
+  <!-- Velocity scaling factor (0.0-1.0) -->
+  <param name="velocity_scaling" value="0.2"/>
+  <!-- Acceleration scaling factor (0.0-1.0) -->
+  <param name="acceleration_scaling" value="0.2"/>
+</node>
+
+<!-- Launch the PyQt GUI with a delay after everything else -->
+<node name="maze_gui" pkg="maze_runner" type="gui.py" output="screen"
+launch-prefix="bash -c 'sleep 8; $0 $@'"/>
 </launch>
