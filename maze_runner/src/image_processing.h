@@ -17,6 +17,10 @@
  #include <opencv2/aruco.hpp>
  #include <vector>
  #include <string>
+
+ #include <ros/ros.h>
+ #include <sensor_msgs/Image.h>
+ #include <cv_bridge/cv_bridge.h>
  
  /**
   * @class ImageProcessor
@@ -103,7 +107,10 @@
       * @return std::pair<bool, bool> Flags indicating if start and end points were found
       */
      std::pair<bool, bool> detectStartEndPoints(std::vector<std::string>& maze, const int mazeSize);
-    
+
+
+     ros::NodeHandle nh;
+     ros::Publisher vis_pub;
  };
  
  #endif // IMAGE_PROCESSING_H
