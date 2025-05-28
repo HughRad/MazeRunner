@@ -1,4 +1,4 @@
-#include "maze_solver.h"
+#include <maze_runner/maze_solver.h>
 #include <iostream>
 #include <algorithm> 
 #include <cmath>

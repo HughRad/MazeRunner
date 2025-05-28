@@ -1,7 +1,9 @@
-#include "image_processing.h"
+#include <maze_runner/image_processing.h>
 #include <iostream>
 
-ImageProcessor::ImageProcessor() {}
+ImageProcessor::ImageProcessor() {
+    vis_pub = nh.advertise<sensor_msgs::Image>("/maze/visualisation", 1);
+}
 
 std::vector<std::string> ImageProcessor::processMaze(const cv::Mat& image) {
     // Debug output
@@ -155,8 +157,9 @@ std::vector<std::string> ImageProcessor::generateMazeArray(const cv::Mat& binary
         }
     }
 
-    // Show debug visualisation
-    cv::imshow("Maze Grid Analysis", debugOverlay);
+    // Publish the debug image as a ROS message
+    sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", debugOverlay).toImageMsg();
+    vis_pub.publish(msg);
 
     // Detect start and end points
     auto [startFound, endFound] = detectStartEndPoints(maze, MAZE_SIZE);

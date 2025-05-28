@@ -21,11 +21,12 @@ class PlayGUI(QWidget):
         self.setDarkMode()
         self.initUI()
         rospy.set_param('/robot_ready', False)
+        rospy.set_param('/robot_stop', False)  # Initialize stop parameter
 
         # Initialize variables for memory management
         self.gc_counter = 0
         self.last_camera_timestamp = rospy.Time.now()
-        self.image_throttle_rate = rospy.Duration(0.1)  # Throttle to 10Hz max
+        self.image_throttle_rate = rospy.Duration(0.033)  # Throttle to 30Hz max
 
         # ROS Subscribers
         self.log_sub = rospy.Subscriber('/maze_gui/log', String, self.update_log)
@@ -126,9 +127,10 @@ class PlayGUI(QWidget):
         self.start_button.setStyleSheet("background-color: #3A6EA5; color: white;")  # Blue start button
         
         # Add additional placeholder buttons for future use
-        self.reset_button = QPushButton('Reset', self)
-        self.reset_button.setEnabled(False)
-        self.reset_button.setMinimumHeight(50)
+        # self.reset_button = QPushButton('Reset', self)
+        # self.reset_button.clicked.connect(self.reset)
+        # self.reset_button.setEnabled(False)
+        # self.reset_button.setMinimumHeight(50)
         
         self.exit_button = QPushButton('Exit', self)
         self.exit_button.clicked.connect(self.close)
@@ -137,7 +139,7 @@ class PlayGUI(QWidget):
         
         control_layout.addWidget(self.status_label)
         control_layout.addWidget(self.start_button)
-        control_layout.addWidget(self.reset_button)
+        # control_layout.addWidget(self.reset_button)
         control_layout.addWidget(self.exit_button)
         control_layout.addStretch()
         
@@ -192,6 +194,11 @@ class PlayGUI(QWidget):
         
         self.setLayout(main_layout)
 
+        # Set up a timer to check for robot status
+        self.status_timer = QTimer()
+        self.status_timer.timeout.connect(self.check_robot_status)
+        self.status_timer.start(1000)  # Check every second
+
     def create_frame(self):
         """Helper function to create a styled frame"""
         frame = QFrame()
@@ -202,14 +209,57 @@ class PlayGUI(QWidget):
 
     def play(self):
         rospy.set_param('/robot_ready', True)
-        self.status_label.setText('Status: ✅ Ready')
+        self.status_label.setText('Status: ✅ Running')
         self.status_label.setStyleSheet("color: #7FFF7F;")  # Light green for success status
         self.start_button.setEnabled(False)
         self.reset_button.setEnabled(True)
-        self.log_output.append("Robot is ready to start maze navigation")
+        self.log_output.append("Robot is running maze navigation")
+
+    def reset(self):
+        """Stop the current robot operation and reset to home position"""
+        # Set a parameter to signal the robot to stop
+        rospy.set_param('/robot_stop', True)
+        self.status_label.setText('Status: Stopping Robot...')
+        self.status_label.setStyleSheet("color: #FF6B6B;")  # Red color for stopping status
+        self.reset_button.setEnabled(False)
+        self.log_output.append("⚠️ Stop signal sent - returning robot to home position")
+
+    def check_robot_status(self):
+        """Check if the robot is waiting for the next start signal"""
+        # Look for the completion message in the log
+        log_text = self.log_output.toPlainText()
+        
+        # Check for completion messages
+        if "Maze execution completed successfully." in log_text and not self.start_button.isEnabled():
+            self.start_button.setEnabled(True)
+            self.reset_button.setEnabled(False)
+            self.status_label.setText('Status: Waiting for Start')
+            self.status_label.setStyleSheet("color: #FFD700;")  # Gold color for waiting status
+        
+        # Check if the robot was reset and is now ready
+        elif "Robot returned to home position" in log_text and not self.start_button.isEnabled():
+            self.start_button.setEnabled(True)
+            self.reset_button.setEnabled(False)  
+            self.status_label.setText('Status: Waiting for Start')
+            self.status_label.setStyleSheet("color: #FFD700;")  # Gold color for waiting status
 
     def update_log(self, msg):
         self.log_output.append(msg.data)
+        
+        # Auto-reset the GUI when execution completes
+        if "Maze execution completed successfully." in msg.data:
+            # Reset the start/stop buttons on completion
+            self.start_button.setEnabled(True)
+            self.reset_button.setEnabled(False)
+            self.status_label.setText('Status: Waiting for Start')
+            self.status_label.setStyleSheet("color: #FFD700;")  # Gold color for waiting status
+        
+        # Handle robot reset completion
+        elif "Robot returned to home position" in msg.data:
+            self.start_button.setEnabled(True)
+            self.reset_button.setEnabled(False)
+            self.status_label.setText('Status: Waiting for Start')
+            self.status_label.setStyleSheet("color: #FFD700;")  # Gold color for waiting status
 
     def update_camera(self, msg):
         # Throttle image updates to prevent overwhelming the GUI

@@ -428,6 +428,19 @@ tf2_msgs_generate_messages_lisp/fast:
 .PHONY : tf2_msgs_generate_messages_lisp/fast
 
 #=============================================================================
+# Target rules for targets named maze_visualizer
+
+# Build rule for target.
+maze_visualizer: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 maze_visualizer
+.PHONY : maze_visualizer
+
+# fast build rule for target.
+maze_visualizer/fast:
+	$(MAKE) -f CMakeFiles/maze_visualizer.dir/build.make CMakeFiles/maze_visualizer.dir/build
+.PHONY : maze_visualizer/fast
+
+#=============================================================================
 # Target rules for targets named dynamic_reconfigure_generate_messages_lisp
 
 # Build rule for target.
@@ -1677,6 +1690,33 @@ src/maze_solver.cpp.s:
 	$(MAKE) -f CMakeFiles/maze_solver_lib.dir/build.make CMakeFiles/maze_solver_lib.dir/src/maze_solver.cpp.s
 .PHONY : src/maze_solver.cpp.s
 
+src/maze_visualizer.o: src/maze_visualizer.cpp.o
+
+.PHONY : src/maze_visualizer.o
+
+# target to build an object file
+src/maze_visualizer.cpp.o:
+	$(MAKE) -f CMakeFiles/maze_visualizer.dir/build.make CMakeFiles/maze_visualizer.dir/src/maze_visualizer.cpp.o
+.PHONY : src/maze_visualizer.cpp.o
+
+src/maze_visualizer.i: src/maze_visualizer.cpp.i
+
+.PHONY : src/maze_visualizer.i
+
+# target to preprocess a source file
+src/maze_visualizer.cpp.i:
+	$(MAKE) -f CMakeFiles/maze_visualizer.dir/build.make CMakeFiles/maze_visualizer.dir/src/maze_visualizer.cpp.i
+.PHONY : src/maze_visualizer.cpp.i
+
+src/maze_visualizer.s: src/maze_visualizer.cpp.s
+
+.PHONY : src/maze_visualizer.s
+
+# target to generate assembly for a file
+src/maze_visualizer.cpp.s:
+	$(MAKE) -f CMakeFiles/maze_visualizer.dir/build.make CMakeFiles/maze_visualizer.dir/src/maze_visualizer.cpp.s
+.PHONY : src/maze_visualizer.cpp.s
+
 src/robot_control.o: src/robot_control.cpp.o
 
 .PHONY : src/robot_control.o
@@ -1737,6 +1777,7 @@ help:
 	@echo "... dynamic_reconfigure_generate_messages_nodejs"
 	@echo "... tf2_msgs_generate_messages_py"
 	@echo "... tf2_msgs_generate_messages_lisp"
+	@echo "... maze_visualizer"
 	@echo "... dynamic_reconfigure_generate_messages_lisp"
 	@echo "... tf2_msgs_generate_messages_cpp"
 	@echo "... octomap_msgs_generate_messages_py"
@@ -1838,6 +1879,9 @@ help:
 	@echo "... src/maze_solver.o"
 	@echo "... src/maze_solver.i"
 	@echo "... src/maze_solver.s"
+	@echo "... src/maze_visualizer.o"
+	@echo "... src/maze_visualizer.i"
+	@echo "... src/maze_visualizer.s"
 	@echo "... src/robot_control.o"
 	@echo "... src/robot_control.i"
 	@echo "... src/robot_control.s"

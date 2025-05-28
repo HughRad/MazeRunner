@@ -91,9 +91,9 @@ endif()
 # flag project as catkin-based to distinguish if a find_package()-ed project is a catkin project
 set(maze_runner_FOUND_CATKIN_PROJECT TRUE)
 
-if(NOT " " STREQUAL " ")
+if(NOT "/home/corso/ws_moveit/src/maze_runner/include " STREQUAL " ")
   set(maze_runner_INCLUDE_DIRS "")
-  set(_include_dirs "")
+  set(_include_dirs "/home/corso/ws_moveit/src/maze_runner/include")
   if(NOT " " STREQUAL " ")
     set(_report "Check the issue tracker '' and consider creating a ticket if the problem has not been reported yet.")
   elseif(NOT " " STREQUAL " ")
@@ -185,7 +185,7 @@ foreach(t ${maze_runner_EXPORTED_TARGETS})
   endif()
 endforeach()
 
-set(depends "roscpp;geometry_msgs;moveit_core;moveit_ros_planning;moveit_ros_planning_interface;moveit_commander;moveit_servo")
+set(depends "roscpp;geometry_msgs;moveit_core;moveit_ros_planning;moveit_ros_planning_interface;moveit_commander;moveit_servo;tf2_geometry_msgs")
 foreach(depend ${depends})
   string(REPLACE " " ";" depend_list ${depend})
   # the package name of the dependency must be kept in a unique variable so that it is not overwritten in recursive calls

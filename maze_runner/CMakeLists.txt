@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   std_srvs
+  tf2_geometry_msgs
 )
 
 
@@ -26,7 +27,8 @@ find_package(OpenCV REQUIRED)
 ## catkin specific configuration ##
 ###################################
 catkin_package(
-  CATKIN_DEPENDS roscpp geometry_msgs moveit_core moveit_ros_planning moveit_ros_planning_interface moveit_commander moveit_servo
+  INCLUDE_DIRS include
+  CATKIN_DEPENDS roscpp geometry_msgs moveit_core moveit_ros_planning moveit_ros_planning_interface moveit_commander moveit_servo tf2_geometry_msgs
 )
 
 ###########
@@ -35,6 +37,7 @@ catkin_package(
 
 ## Specify additional locations of header files
 include_directories(
+  include
   ${catkin_INCLUDE_DIRS}
   ${moveit_core_INCLUDE_DIRS}
   ${moveit_ros_planning_INCLUDE_DIRS}
@@ -47,6 +50,7 @@ include_directories(
 ## Declare a C++ executable for each node
 add_executable(maze_runner src/robot_control.cpp)
 add_executable(robot_sim src/robot_control.cpp)
+add_executable(maze_visualizer src/maze_visualizer.cpp)
 
 
 ## Add dependencies to the executables
@@ -60,6 +64,14 @@ add_dependencies(robot_sim
 
 
 add_dependencies(maze_runner 
+  ${${PROJECT_NAME}_EXPORTED_TARGETS} 
+  ${catkin_EXPORTED_TARGETS}
+  ${moveit_core_EXPORTED_TARGETS}
+  ${moveit_ros_planning_interface_EXPORTED_TARGETS}
+  ${moveit_commander_EXPORTED_TARGETS}
+)
+
+add_dependencies(maze_visualizer 
   ${${PROJECT_NAME}_EXPORTED_TARGETS} 
   ${catkin_EXPORTED_TARGETS}
   ${moveit_core_EXPORTED_TARGETS}
@@ -91,7 +103,14 @@ target_link_libraries(maze_runner
   ${OpenCV_LIBS}
 )
 
-
+target_link_libraries(maze_visualizer
+  maze_solver_lib
+  image_processing
+  ${catkin_LIBRARIES}
+  ${moveit_core_LIBRARIES}
+  ${moveit_ros_planning_interface_LIBRARIES}
+  ${OpenCV_LIBS}
+)
 #############
 ## Install ##
 #############

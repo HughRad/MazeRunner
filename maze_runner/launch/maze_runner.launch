@@ -3,6 +3,10 @@
   roslaunch ur_robot_driver ur3_bringup.launch robot_ip:=192.168.0.195 (robot ip) -->  
     <!--roslaunch ur_robot_driver ur3_bringup.launch robot_ip:=192.168.1.195 (robot ip) -->  
 
+  <!-- For UR3e instead of UR3, use the following line and change moveit config: Also need to change the default joint configuration in robot_control to suite ur3e joint limits
+  roslaunch ur_robot_driver ur3e_bringup.launch robot_ip:=(robot ip) -->  
+    <!--roslaunch ur_robot_driver ur3e_bringup.launch robot_ip:= (robot ip) -->  
+
   <!-- Launch MoveIt for UR3 with real robot -->
   <include file="$(find ur3_moveit_config)/launch/moveit_planning_execution.launch">
     <arg name="sim" value="false"/>
