@@ -6,7 +6,7 @@
  * waypoints for robot navigation. It includes functions for path planning,
  * coordinate transformation, and visualization.
  * 
- * @author Original author
+ * @author Hugh Radvan
  * @date May 2025
  */
 
