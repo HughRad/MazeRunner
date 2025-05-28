@@ -300,23 +300,27 @@ class PlayGUI(QWidget):
         max_display_size = 800  # Maximum width or height in pixels
         height, width, channel = cv_image.shape
         
-        # Calculate scale factor to limit maximum size while maintaining aspect ratio
-        scale_factor = 1.0
+        # Calculate scale factor to fit the widget while maintaining aspect ratio
+        widget_size = display_widget.size()
+        scale_w = widget_size.width() / width
+        scale_h = widget_size.height() / height
+        scale_factor = min(scale_w, scale_h)
+        
         if width > max_display_size or height > max_display_size:
             scale_factor = min(max_display_size / width, max_display_size / height)
-            new_width = int(width * scale_factor)
-            new_height = int(height * scale_factor)
-            cv_image = cv2.resize(cv_image, (new_width, new_height), interpolation=cv2.INTER_AREA)
-            height, width = new_height, new_width
         
-        bytes_per_line = 3 * width
-        q_image = QImage(cv_image.data, width, height, bytes_per_line, QImage.Format_RGB888).rgbSwapped()
+        new_width = int(width * scale_factor)
+        new_height = int(height * scale_factor)
+        cv_image = cv2.resize(cv_image, (new_width, new_height), interpolation=cv2.INTER_AREA)
         
-        # Create a new pixmap rather than scaling the widget (more efficient)
+        bytes_per_line = 3 * new_width
+        q_image = QImage(cv_image.data, new_width, new_height, bytes_per_line, QImage.Format_RGB888).rgbSwapped()
+        
         pixmap = QPixmap.fromImage(q_image)
         display_widget.setPixmap(pixmap)
+        display_widget.setScaledContents(True)  # Add this to ensure image fills the widget
         
-        # Force a garbage collection to help prevent memory leaks
+        # Cleanup
         cv_image = None
         q_image = None
 
